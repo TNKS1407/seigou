@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>整合 SEIGOU - RFマッチングアプリ</title>
+  <style>
+    :root{
+      --bg1:#f7fbff;
+      --bg2:#eef2ff;
+      --ink:#182033;
+      --muted:#667085;
+      --card:#ffffffdd;
+      --line:#dbe4ff;
+      --blue:#3657ff;
+      --cyan:#00a6c8;
+      --green:#12a37f;
+      --red:#ef476f;
+      --shadow:0 24px 70px rgba(70,90,160,.22);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;
+      color:var(--ink);
+      background:
+        radial-gradient(circle at 10% 0%, #d8f3ff 0 20%, transparent 36%),
+        radial-gradient(circle at 92% 2%, #eadfff 0 18%, transparent 35%),
+        linear-gradient(180deg,var(--bg1),var(--bg2));
+      padding:18px;
+    }
+    button{font:inherit}
+    .app{width:min(1120px,100%);margin:auto}
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:16px;
+      margin:8px 0 18px;
+      flex-wrap:wrap;
+    }
+    .brand{display:flex;align-items:center;gap:14px}
+    .logo{
+      width:56px;height:56px;border-radius:18px;
+      display:grid;place-items:center;
+      background:linear-gradient(135deg,#111827,#344cff);
+      color:#fff;font-weight:900;font-size:20px;
+      box-shadow:0 14px 34px rgba(53,87,255,.24);
+    }
+    h1{margin:0;font-size:clamp(31px,5vw,52px);letter-spacing:-.05em;line-height:.95}
+    .subtitle{margin-top:6px;color:var(--muted);font-weight:800;font-size:14px}
+    .nav{
+      display:flex;gap:7px;flex-wrap:wrap;
+      padding:7px;border-radius:23px;
+      background:#ffffffb9;border:1px solid #fff;
+      box-shadow:0 10px 28px rgba(70,90,160,.11);
+    }
+    .nav button{
+      border:0;border-radius:17px;padding:10px 14px;
+      background:transparent;color:#657084;
+      font-weight:900;cursor:pointer;
+    }
+    .nav button.active{background:#111827;color:#fff}
+    .notice{
+      border:1px solid #fff;
+      background:#ffffffc4;
+      border-radius:24px;
+      padding:13px 16px;
+      margin-bottom:18px;
+      display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;
+      box-shadow:0 8px 28px rgba(70,90,160,.10);
+      color:#4f5b73;font-weight:850;
+    }
+    .notice button{
+      border:0;border-radius:999px;background:white;
+      padding:9px 13px;font-weight:900;color:#667085;cursor:pointer;
+      box-shadow:0 4px 18px rgba(70,90,160,.08);
+    }
+    .notice button.on{background:var(--blue);color:#fff}
+    .layout{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) 340px;
+      gap:18px;
+      align-items:start;
+    }
+    .card{
+      border:1px solid #fff;
+      border-radius:30px;
+      background:var(--card);
+      overflow:hidden;
+      box-shadow:var(--shadow);
+      backdrop-filter:blur(12px);
+    }
+    .hero{
+      position:relative;
+      min-height:230px;
+      padding:26px;
+      color:#fff;
+      background:linear-gradient(135deg,var(--g1),var(--g2));
+      overflow:hidden;
+    }
+    .hero:before{
+      content:"";position:absolute;right:-80px;top:-80px;
+      width:260px;height:260px;border-radius:50%;
+      border:1px solid rgba(255,255,255,.27);
+    }
+    .hero:after{
+      content:"";position:absolute;right:-40px;bottom:-70px;
+      width:400px;height:160px;opacity:.28;transform:rotate(-8deg);
+      background:repeating-radial-gradient(ellipse at center,rgba(255,255,255,.45) 0 1px,transparent 1px 11px);
+    }
+    .hero-inner{position:relative;z-index:1;display:flex;gap:18px;align-items:flex-start}
+    .avatar{
+      width:108px;height:108px;flex:0 0 108px;
+      border-radius:32px;border:4px solid rgba(255,255,255,.68);
+      background:rgba(255,255,255,.18);
+      display:grid;place-items:center;
+      font-size:52px;
+      box-shadow:0 14px 38px rgba(0,0,0,.16);
+    }
+    .name-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .name{font-size:42px;font-weight:1000;letter-spacing:-.06em;line-height:1}
+    .age{padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.22);font-weight:950}
+    .job{margin:7px 0 14px;font-weight:850;opacity:.94}
+    .quote{max-width:450px;margin:0;line-height:1.7;font-size:14px;opacity:.92}
+    .smith-bg{position:absolute;right:24px;top:22px;width:178px;height:178px;opacity:.52}
+    .body{
+      padding:22px;
+      display:grid;
+      grid-template-columns:minmax(0,1.25fr) minmax(250px,.75fr);
+      gap:18px;
+    }
+    .tags{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+    .tag{
+      border:1px solid #cbd7ff;background:#f4f6ff;color:#344cff;
+      border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900;
+    }
+    .bio{
+      background:#f8faff;
+      border:1px solid #edf1ff;
+      border-radius:24px;
+      padding:16px;
+      line-height:1.85;
+      color:#364154;
+      font-weight:650;
+    }
+    .wants{
+      margin-top:14px;
+      border:1px solid #ccf3f0;
+      background:#f0fffc;
+      border-radius:24px;
+      padding:16px;
+    }
+    .section-title{font-weight:1000;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+    ul{margin:0;padding-left:1.25em;color:#3c485d;line-height:1.9;font-weight:700}
+    .sidegrid{display:grid;gap:12px}
+    .score{
+      border-radius:24px;background:#fff;border:1px solid #eef2ff;
+      padding:16px;text-align:center;
+    }
+    .score-number{font-size:54px;line-height:.9;font-weight:1000;color:var(--blue);letter-spacing:-.06em}
+    .score-label{font-size:12px;font-weight:1000;color:#7a8497;margin-top:6px}
+    .meter{
+      height:13px;background:#e7ecff;border-radius:999px;overflow:hidden;margin-top:14px;
+    }
+    .meter span{display:block;height:100%;width:var(--score);background:linear-gradient(90deg,#344cff,#00a6c8);border-radius:999px}
+    .params{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .param{
+      background:#f8faff;border:1px solid #eef2ff;border-radius:18px;padding:12px;
+    }
+    .param small{display:block;color:#7a8497;font-weight:950;font-size:11px}
+    .param b{font-size:20px;letter-spacing:-.03em}
+    .circuit{
+      background:#fff;border:1px solid #eef2ff;border-radius:22px;padding:10px;
+    }
+    .buttons{
+      display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;
+      border-top:1px solid #edf1ff;background:#f7f9ff;padding:16px;
+    }
+    .action{
+      border:1px solid #edf1ff;background:#fff;border-radius:24px;
+      padding:14px 8px;text-align:center;cursor:pointer;
+      box-shadow:0 8px 20px rgba(70,90,160,.09);
+      transition:.15s transform,.15s box-shadow;
+      font-weight:1000;
+    }
+    .action:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(70,90,160,.16)}
+    .action .icon{font-size:29px;display:block;margin-bottom:4px}
+    .open{color:var(--red)} .match{color:var(--green)} .thru{color:var(--blue)}
+    .hint{font-size:11px;color:#8b94a8;font-weight:900;margin-top:2px}
+    .panel{
+      border:1px solid #fff;border-radius:30px;background:#ffffffc8;
+      padding:18px;box-shadow:0 14px 40px rgba(70,90,160,.13);
+      backdrop-filter:blur(12px);
+      margin-bottom:18px;
+    }
+    .panel.dark{background:#111827;color:#fff}
+    .panel.dark p{color:#cbd5e1}
+    .panel h2,.panel h3{margin:0 0 12px;font-size:20px;letter-spacing:-.04em}
+    .panel p{line-height:1.8;color:#596579;font-weight:650;margin:0}
+    .conditions{display:grid;gap:10px}
+    .cond{background:#f8faff;border-radius:18px;padding:12px;border:1px solid #edf1ff}
+    .cond b{display:block;margin-bottom:3px}
+    .cond span{color:#667085;font-weight:700;font-size:13px}
+    .hidden{display:none!important}
+    .analyzer,.matches{
+      padding:22px;
+    }
+    .analyzer-grid{display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start}
+    .big-smith{
+      background:#f8faff;border:1px solid #edf1ff;border-radius:26px;
+      display:grid;place-items:center;padding:20px;
+    }
+    .readouts{display:grid;gap:10px}
+    .readout{border:1px solid #edf1ff;background:#fff;border-radius:22px;padding:16px}
+    .readout .top{display:flex;justify-content:space-between;gap:12px;align-items:end}
+    .readout b{font-size:15px}
+    .readout strong{font-size:26px;color:var(--blue)}
+    .readout p{margin:4px 0 0;color:#7a8497;font-size:12px;font-weight:800}
+    .match-list{display:grid;gap:10px}
+    .match-item{
+      background:#fff;border:1px solid #edf1ff;border-radius:22px;padding:14px;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+    }
+    .match-left{display:flex;gap:10px;align-items:center}
+    .heartbox{
+      width:48px;height:48px;border-radius:16px;
+      display:grid;place-items:center;color:white;font-size:22px;
+      background:linear-gradient(135deg,#12a37f,#00a6c8);
+    }
+    .empty{
+      background:#fff;border:1px dashed #cbd7ff;border-radius:22px;padding:22px;
+      text-align:center;color:#667085;font-weight:800;
+    }
+    svg text{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif}
+    @media (max-width:900px){
+      .layout,.body,.analyzer-grid{grid-template-columns:1fr}
+      .smith-bg{opacity:.25;right:-20px}
+      .hero-inner{flex-direction:column}
+    }
+    @media (max-width:520px){
+      body{padding:10px}
+      .buttons{gap:8px}
+      .action{border-radius:18px;font-size:13px}
+      .body,.analyzer,.matches{padding:15px}
+      .hero{padding:20px}
+      .name{font-size:36px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo">Γ</div>
+        <div>
+          <h1>整合 SEIGOU</h1>
+          <div class="subtitle">複素インピーダンスを否定しないRFマッチングアプリ</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="active" data-tab="profile">探索</button>
+        <button data-tab="analyzer">解析</button>
+        <button data-tab="matches">整合履歴</button>
+      </nav>
+    </header>
+
+    <div class="notice">
+      <div id="toast">プロフィールを見て、整合できそうならMATCH。</div>
+      <div>
+        <button id="qToggle" class="on">高Q許容 ON</button>
+        <button id="resetBtn">再校正</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <main>
+        <section id="profileView" class="card"></section>
+
+        <section id="analyzerView" class="card analyzer hidden"></section>
+
+        <section id="matchesView" class="card matches hidden">
+          <h2>整合履歴</h2>
+          <p style="margin-bottom:16px;color:#667085;font-weight:750;">MATCHした相手がここに残ります。</p>
+          <div id="matchList" class="match-list"></div>
+        </section>
+      </main>
+
+      <aside>
+        <div class="panel">
+          <h3>今日の整合条件</h3>
+          <div class="conditions">
+            <div class="cond"><b>ソース側</b><span>少し誘導性に拗れている</span></div>
+            <div class="cond"><b>負荷側</b><span>実部をちゃんと受け取れる人希望</span></div>
+            <div class="cond"><b>禁止事項</b><span>反射波を返信と呼ぶこと</span></div>
+          </div>
+        </div>
+        <div class="panel dark">
+          <h3>アプリの説明</h3>
+          <p>
+            SEIGOUは、相手を50Ωに矯正するのではなく、お互いが複素負荷のまま気持ちよく電力伝送できる関係を探す、架空のRF系マッチングアプリです。
+          </p>
+        </div>
+        <div class="panel">
+          <h3>次に入れるなら</h3>
+          <p>Smithチャート上でスワイプ、会話のS21診断、プロフィール編集、オートチューナ風おすすめ機能。</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+<script>
+const profiles = [
+  {
+    name:"Sho", age:31, job:"電気系エンジニア", avatar:"👨‍🔧",
+    impedance:"50Ω系", q:82, gamma:0.08, vswr:1.17, freq:"27.12 MHz",
+    phase:"-7°", returnLoss:"21.9 dB",
+    tags:["RF","電源","測定器","プラズマ","Smithチャート"],
+    bio:"50Ω系の電気屋です。見た目のスペックより、実使用条件での安定性を重視します。一点整合で盛り上がるより、温度変化・負荷変動・寄生成分込みで長くVSWRを低く保てる関係が理想です。少し高Qなので、刺さる周波数帯は狭めです。ただ、共振点が合うとそこそこ深く入ります。",
+    wants:["虚部を打ち消してくれる人","寄生成分込みで話せる人","負荷変動にやさしい人"],
+    g1:"#4f46e5", g2:"#06b6d4"
+  },
+  {
+    name:"Maki", age:29, job:"EMC試験エンジニア", avatar:"🧪",
+    impedance:"やや容量性", q:64, gamma:0.12, vswr:1.27, freq:"150 kHz〜1 GHz",
+    phase:"+12°", returnLoss:"18.4 dB",
+    tags:["EMC","ノイズ対策","フェライト","筐体","接地"],
+    bio:"雑音の多い環境でも落ち着いています。表面上の波形だけで判断されるより、グランドの取り回しや結合経路まで一緒に見てくれる人が好きです。近接界で急に距離を詰められると少し反射します。",
+    wants:["シールドを過信しない人","コモンモードに気づく人","測定条件を雑にしない人"],
+    g1:"#d946ef", g2:"#fb7185"
+  },
+  {
+    name:"Ren", age:34, job:"組込みソフト屋", avatar:"🧑‍💻",
+    impedance:"高インピーダンス", q:71, gamma:0.18, vswr:1.44, freq:"10 ms周期",
+    phase:"+3°", returnLoss:"14.9 dB",
+    tags:["C言語","RTOS","UART","割込み","状態遷移"],
+    bio:"初期化シーケンスと例外処理を大切にします。普段は静かですが、ウォッチドッグが吠えると急に饒舌になります。曖昧な仕様をそのまま投げられると未定義動作になります。",
+    wants:["仕様を一緒に固められる人","例外系を軽視しない人","デバッグログを読んでくれる人"],
+    g1:"#10b981", g2:"#14b8a6"
+  },
+  {
+    name:"Aoi", age:30, job:"高周波回路設計", avatar:"📡",
+    impedance:"共振点鋭め", q:93, gamma:0.05, vswr:1.11, freq:"2.4 GHz",
+    phase:"-2°", returnLoss:"26.0 dB",
+    tags:["VNA","LNA","アンテナ","基板","Sパラ"],
+    bio:"会話のS21は高めですが、入力マッチングには少し癖があります。理想は、広帯域に誰とでも浅く合うより、狭帯域でもちゃんと深く整合する関係です。測定前の校正を忘れる人には厳しめです。",
+    wants:["OPEN/SHORT/LOADを大事にする人","位相まで見てくれる人","基板の端を雑に扱わない人"],
+    g1:"#3b82f6", g2:"#8b5cf6"
+  }
+];
+
+let index = 0;
+let highQ = true;
+let matches = [];
+let currentTab = "profile";
+
+const $ = (id)=>document.getElementById(id);
+const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+
+function scoreOf(p){
+  const gammaScore = (1 - clamp(p.gamma / 0.3, 0, 1)) * 38;
+  const qTarget = highQ ? 88 : 62;
+  const qScore = (1 - Math.abs(p.q - qTarget) / 100) * 24;
+  const vswrScore = (1 - clamp((p.vswr - 1) / 0.8, 0, 1)) * 26;
+  const tagScore = p.tags.some(t => ["RF","Sパラ","電源","VNA"].includes(t)) ? 12 : 5;
+  return Math.round(gammaScore + qScore + vswrScore + tagScore);
+}
+
+function smithSvg(p, big=false){
+  const phase = parseFloat(p.phase) * Math.PI / 180;
+  const r = clamp(p.gamma,0,0.4) * 145;
+  const x = 100 + r * Math.cos(phase);
+  const y = 100 - r * Math.sin(phase);
+  const cls = big ? "" : "smith-bg";
+  return `
+  <svg class="${cls}" viewBox="0 0 200 200">
+    <circle cx="100" cy="100" r="78" fill="rgba(255,255,255,.58)" stroke="rgba(255,255,255,.72)" stroke-width="2"/>
+    <circle cx="132" cy="100" r="46" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.5"/>
+    <circle cx="158" cy="100" r="20" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.5"/>
+    <circle cx="86" cy="70" r="52" fill="none" stroke="rgba(255,255,255,.42)" stroke-width="1.2"/>
+    <circle cx="86" cy="130" r="52" fill="none" stroke="rgba(255,255,255,.42)" stroke-width="1.2"/>
+    <path d="M22 100 H178" stroke="rgba(255,255,255,.68)" stroke-width="1.5"/>
+    <path d="M100 22 C132 54 150 72 178 100" fill="none" stroke="rgba(255,255,255,.48)" stroke-width="1.2"/>
+    <path d="M100 178 C132 146 150 128 178 100" fill="none" stroke="rgba(255,255,255,.48)" stroke-width="1.2"/>
+    <circle cx="100" cy="100" r="5" fill="#fff"/>
+    <line x1="100" y1="100" x2="${x}" y2="${y}" stroke="#22d3ee" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="${x}" cy="${y}" r="7" fill="#06b6d4" stroke="white" stroke-width="3"/>
+    <text x="100" y="194" text-anchor="middle" font-size="12" fill="white">Γ → 0</text>
+  </svg>`;
+}
+
+function circuitSvg(){
+  return `
+  <svg viewBox="0 0 260 96" style="width:100%;height:96px">
+    <path d="M18 48 H56" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
+    <path d="M56 48 c8 -18 18 -18 26 0 c8 18 18 18 26 0 c8 -18 18 -18 26 0" fill="none" stroke="#0f766e" stroke-width="4" stroke-linecap="round"/>
+    <path d="M134 48 H164" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
+    <path d="M164 28 V68" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+    <path d="M178 28 V68" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
+    <path d="M178 48 H222" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
+    <rect x="222" y="28" width="26" height="40" rx="4" fill="white" stroke="#64748b" stroke-width="3"/>
+    <text x="235" y="53" text-anchor="middle" font-size="14" fill="#334155">ZL</text>
+    <text x="130" y="88" text-anchor="middle" font-size="12" fill="#64748b">LとCで、いったん社会に出られる形へ</text>
+  </svg>`;
+}
+
+function profileHtml(){
+  const p = profiles[index % profiles.length];
+  const score = scoreOf(p);
+  return `
+    <div class="hero" style="--g1:${p.g1};--g2:${p.g2}">
+      ${smithSvg(p)}
+      <div class="hero-inner">
+        <div class="avatar">${p.avatar}</div>
+        <div>
+          <div class="name-row">
+            <div class="name">${p.name}</div>
+            <div class="age">${p.age}</div>
+          </div>
+          <div class="job">${p.job} / ${p.impedance}</div>
+          <p class="quote">“相性”を雰囲気で終わらせず、Γと位相まで見にいくタイプです。</p>
+        </div>
+      </div>
+    </div>
+    <div class="body">
+      <div>
+        <div class="tags">${p.tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
+        <div class="bio">${p.bio}</div>
+        <div class="wants">
+          <div class="section-title">✨ こういう整合を希望</div>
+          <ul>${p.wants.map(w=>`<li>${w}</li>`).join("")}</ul>
+        </div>
+      </div>
+      <div class="sidegrid">
+        <div class="score">
+          <div class="score-number">${score}</div>
+          <div class="score-label">MATCH SCORE</div>
+          <div class="meter" style="--score:${score}%"><span></span></div>
+        </div>
+        <div class="params">
+          <div class="param"><small>VSWR</small><b>${p.vswr}</b></div>
+          <div class="param"><small>Return Loss</small><b>${p.returnLoss}</b></div>
+          <div class="param"><small>中心周波数</small><b style="font-size:16px">${p.freq}</b></div>
+          <div class="param"><small>Phase</small><b>${p.phase}</b></div>
+        </div>
+        <div class="circuit">${circuitSvg()}</div>
+      </div>
+    </div>
+    <div class="buttons">
+      <button class="action open" onclick="doOpen()"><span class="icon">✕</span>OPEN<div class="hint">ちがうかも</div></button>
+      <button class="action match" onclick="doMatch('共役整合')"><span class="icon">♥</span>MATCH<div class="hint">いいね</div></button>
+      <button class="action thru" onclick="doMatch('THRU接続')"><span class="icon">📡</span>THRU<div class="hint">超いいね</div></button>
+    </div>
+  `;
+}
+
+function analyzerHtml(){
+  const p = profiles[index % profiles.length];
+  const score = scoreOf(p);
+  return `
+    <h2>相性アナライザ</h2>
+    <p style="margin:0 0 16px;color:#667085;font-weight:750;">恋愛を無理やりSパラで眺める画面。</p>
+    <div class="analyzer-grid">
+      <div class="big-smith">
+        <div style="width:260px;height:260px;background:linear-gradient(135deg,${p.g1},${p.g2});border-radius:28px;display:grid;place-items:center">
+          ${smithSvg(p,true)}
+        </div>
+        <div style="font-weight:950;margin-top:12px">${p.name} / ${p.impedance}</div>
+      </div>
+      <div class="readouts">
+        ${[
+          ["MATCH SCORE", score, "総合的な整合しやすさ。高いほど終段が穏やか。"],
+          ["反射係数 Γ", p.gamma.toFixed(2), "低いほど、送った気持ちが負荷側に入っている。"],
+          ["VSWR", p.vswr, "1に近いほど良い。2を超えると人間関係も終段も熱い。"],
+          ["Q", p.q, "高いほど刺さるが、帯域は狭い。"],
+          ["Return Loss", p.returnLoss, "反射の少なさをdBで見て現実を受け止める。"]
+        ].map(([a,b,c])=>`
+          <div class="readout">
+            <div class="top"><b>${a}</b><strong>${b}</strong></div>
+            <p>${c}</p>
+          </div>`).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function matchListHtml(){
+  if(matches.length === 0){
+    return `<div class="empty">まだ整合履歴がありません。まずはMATCHして、反射波の少ない関係を探しましょう。</div>`;
+  }
+  return matches.map(m=>`
+    <div class="match-item">
+      <div class="match-left">
+        <div class="heartbox">♥</div>
+        <div>
+          <div style="font-weight:1000">${m.name} と整合</div>
+          <div style="font-size:12px;color:#7a8497;font-weight:850">${m.kind} / score ${m.score}</div>
+        </div>
+      </div>
+      <button class="pill-btn">会話</button>
+    </div>
+  `).join("");
+}
+
+function render(){
+  $("profileView").innerHTML = profileHtml();
+  $("analyzerView").innerHTML = analyzerHtml();
+  $("matchList").innerHTML = matchListHtml();
+  $("qToggle").className = highQ ? "on" : "";
+  $("qToggle").textContent = `高Q許容 ${highQ ? "ON" : "OFF"}`;
+}
+
+function nextProfile(){
+  index = (index + 1) % profiles.length;
+  render();
+}
+
+function doOpen(){
+  const p = profiles[index % profiles.length];
+  $("toast").textContent = `${p.name} は開放端として見送りました。`;
+  nextProfile();
+}
+
+function doMatch(kind){
+  const p = profiles[index % profiles.length];
+  const score = scoreOf(p) + (kind === "THRU接続" ? 7 : 0);
+  matches.unshift({...p, kind, score: Math.min(100, score)});
+  $("toast").textContent = `${p.name} と${kind === "THRU接続" ? "THRU" : "MATCH"}しました。S11はかなり低そうです。`;
+  nextProfile();
+  if(currentTab === "matches") $("matchList").innerHTML = matchListHtml();
+}
+
+function setTab(tab){
+  currentTab = tab;
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab === tab));
+  $("profileView").classList.toggle("hidden", tab !== "profile");
+  $("analyzerView").classList.toggle("hidden", tab !== "analyzer");
+  $("matchesView").classList.toggle("hidden", tab !== "matches");
+  if(tab === "matches") $("matchList").innerHTML = matchListHtml();
+}
+
+document.querySelectorAll(".nav button").forEach(btn=>{
+  btn.addEventListener("click",()=>setTab(btn.dataset.tab));
+});
+
+$("qToggle").addEventListener("click",()=>{
+  highQ = !highQ;
+  $("toast").textContent = highQ ? "高Qな相手も許容します。刺さる周波数帯は狭めです。" : "広帯域寄りで探します。深さより扱いやすさ重視。";
+  render();
+});
+
+$("resetBtn").addEventListener("click",()=>{
+  index = 0;
+  matches = [];
+  $("toast").textContent = "測定面を再定義しました。最初から整合を取り直します。";
+  render();
+  setTab("profile");
+});
+
+render();
+</script>
+</body>
+</html>
