@@ -22,6 +22,7 @@
     body{
       margin:0;
       min-height:100vh;
+      overflow-x:hidden;
       font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;
       color:var(--ink);
       background:
@@ -291,6 +292,8 @@
     .label-like{right:1.25rem;color:var(--green);border-color:var(--green);}
     .stack-empty{background:#fff;border-radius:30px;padding:3rem;text-align:center;color:#667085;font-weight:800;box-shadow:var(--shadow);}
     /* ── Registration modal ── */
+    .chat-btn{border:1px solid #edf1ff;background:#fff;border-radius:999px;padding:6px 14px;font:inherit;font-size:12px;font-weight:900;color:var(--blue);cursor:pointer;transition:.15s;}
+    .chat-btn:hover{background:var(--blue);color:#fff;}
     .reg-overlay{position:fixed;inset:0;background:rgba(24,32,51,.55);z-index:300;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .2s;}
     .reg-overlay.open{opacity:1;pointer-events:all;}
     .reg-modal{background:#f7fbff;border-radius:28px;max-width:480px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 70px rgba(70,90,160,.3);}
@@ -451,20 +454,44 @@
 </div>
 
 <script>
+// ── State ──
+const state = {
+  deck: [],          // shuffled profile indices
+  deckPos: 0,        // current position in deck
+  highQ: true,
+  matches: [],
+  currentTab: 'profile',
+  lastMatchedProfile: null,
+};
+
 let profiles = [];
-let stackIndex = 0;
-let highQ = true;
-let matches = [];
-let currentTab = 'profile';
-let lastMatchedProfile = null;
 
 function userProfiles() {
   try { return JSON.parse(localStorage.getItem('seigou_profiles') || '[]'); } catch { return []; }
 }
 function allProfiles() { return [...userProfiles(), ...profiles]; }
 
+function shuffleDeck() {
+  const ap = allProfiles();
+  const indices = ap.map((_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  state.deck = indices;
+  state.deckPos = 0;
+}
+
+function currentProfile() {
+  const ap = allProfiles();
+  if (state.deckPos >= state.deck.length) return null;
+  return ap[state.deck[state.deckPos]];
+}
+
 const $ = id => document.getElementById(id);
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+function toast(msg) { $('toast').textContent = msg; }
 
 // ── RF math ──
 function gammaToZ(gamma, phaseStr, Z0 = 50) {
@@ -477,87 +504,65 @@ function gammaToZ(gamma, phaseStr, Z0 = 50) {
   return { R: Math.round(R * 10) / 10, X: Math.round(X * 10) / 10 };
 }
 
-function zDisplayHtml(gamma, phaseStr) {
-  const { R, X } = gammaToZ(gamma, phaseStr);
-  const sign = X >= 0 ? '+' : '−';
-  return `<span class="z-real">${R}</span><span class="z-sep"> ${sign} j</span><span class="z-imag">${Math.abs(X)}</span><span class="z-sep"> Ω</span>`;
-}
-
-function calcLNetwork(R1, X1, R2, X2, freqMHz) {
-  // Conjugate match: transform Z1=R1+jX1 into Z2*=R2-jX2
-  // Simplified: real-part matching with L-network, ignoring reactive parts for first step
+function calcLNetwork(R1, R2, freqMHz) {
   const omega = 2 * Math.PI * freqMHz * 1e6;
   const Rh = Math.max(R1, R2), Rl = Math.min(R1, R2);
   if (Rh <= 0 || Rl <= 0 || Rh <= Rl) return null;
   const Q = Math.sqrt(Rh / Rl - 1);
   const Xs = Q * Rl;
   const Xp = Rh / Q;
-  function toComponent(X, label) {
-    if (X > 0) {
-      const nH = Math.round(X / omega * 1e12) / 1000;
-      return `${label}: L = ${nH} nH`;
-    } else {
-      const pF = Math.round(-1e15 / (omega * X)) / 1000;
-      return `${label}: C = ${pF} pF`;
-    }
+  function toComp(X, label) {
+    if (X > 0) return `${label}: L = ${Math.round(X / omega * 1e12) / 1000} nH`;
+    return `${label}: C = ${Math.round(-1e15 / (omega * X)) / 1000} pF`;
   }
   return {
     Q: Math.round(Q * 100) / 100,
-    series: toComponent(Xs, '直列'),
-    shunt: toComponent(-Xp, '並列'),
-    seriesAlt: toComponent(-Xs, '直列'),
-    shuntAlt: toComponent(Xp, '並列'),
+    series: toComp(Xs, '直列'),
+    shunt: toComp(-Xp, '並列'),
+    seriesAlt: toComp(-Xs, '直列'),
+    shuntAlt: toComp(Xp, '並列'),
   };
 }
 
 function scoreOf(p) {
   const gammaScore = (1 - clamp(p.gamma / 0.3, 0, 1)) * 38;
-  const qTarget = highQ ? 88 : 62;
+  const qTarget = state.highQ ? 88 : 62;
   const qScore = (1 - Math.abs(p.q - qTarget) / 100) * 24;
   const vswrScore = (1 - clamp((p.vswr - 1) / 0.8, 0, 1)) * 26;
   const tagScore = p.tags.some(t => ['RF','Sパラ','電源','VNA'].includes(t)) ? 12 : 5;
   return Math.round(gammaScore + qScore + vswrScore + tagScore);
 }
 
-// ── Smith chart (enhanced) ──
+// ── Smith chart ──
 function smithSvg(p, big) {
   const phase = parseFloat(p.phase) * Math.PI / 180;
   const r = clamp(p.gamma, 0, 0.4) * 145;
   const x = 100 + r * Math.cos(phase);
   const y = 100 - r * Math.sin(phase);
   const cls = big ? '' : 'smith-bg';
-  const gridOpacity = big ? '.35' : '.22';
-  const strokeW = big ? '1' : '0.8';
-
-  // Constant-R circles (normalized): r=0, 0.3, 0.5, 1, 2, 5
-  // Center: (r/(r+1)*156 + 22, 100), radius: 1/(r+1)*78
+  const op = big ? '.35' : '.22';
+  const sw = big ? '1' : '0.8';
   const rVals = [0, 0.3, 0.5, 1, 2, 5];
   const rCircles = rVals.map(rv => {
     const cx = 22 + rv / (rv + 1) * 156;
-    const radius = 78 / (rv + 1);
-    return `<circle cx="${cx.toFixed(1)}" cy="100" r="${radius.toFixed(1)}" fill="none" stroke="rgba(255,255,255,${gridOpacity})" stroke-width="${strokeW}"/>`;
+    const rad = 78 / (rv + 1);
+    return `<circle cx="${cx.toFixed(1)}" cy="100" r="${rad.toFixed(1)}" fill="none" stroke="rgba(255,255,255,${op})" stroke-width="${sw}"/>`;
   }).join('');
-
-  // Constant-X arcs (simplified as full circles clipped to unit circle area)
   const xVals = [0.5, 1, 2, -0.5, -1, -2];
   const xArcs = xVals.map(xv => {
     const cy = 100 - 78 / xv;
-    const radius = Math.abs(78 / xv);
-    return `<circle cx="178" cy="${cy.toFixed(1)}" r="${radius.toFixed(1)}" fill="none" stroke="rgba(255,255,255,${gridOpacity})" stroke-width="${strokeW}" clip-path="url(#sc)"/>`;
+    const rad = Math.abs(78 / xv);
+    return `<circle cx="178" cy="${cy.toFixed(1)}" r="${rad.toFixed(1)}" fill="none" stroke="rgba(255,255,255,${op})" stroke-width="${sw}" clip-path="url(#sc)"/>`;
   }).join('');
-
   return `<svg class="${cls}" viewBox="0 0 200 200">
-    <defs>
-      <clipPath id="sc"><circle cx="100" cy="100" r="78"/></clipPath>
-    </defs>
+    <defs><clipPath id="sc"><circle cx="100" cy="100" r="78"/></clipPath></defs>
     <circle cx="100" cy="100" r="78" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.72)" stroke-width="1.5"/>
-    ${rCircles}
-    ${xArcs}
+    ${rCircles}${xArcs}
     <path d="M22 100 H178" stroke="rgba(255,255,255,.5)" stroke-width="1"/>
     <circle cx="100" cy="100" r="3" fill="rgba(255,255,255,.4)"/>
-    <line x1="100" y1="100" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#22d3ee" stroke-width="${big ? '2.5' : '3'}" stroke-linecap="round" opacity=".8"/>
-    <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${big ? '6' : '7'}" fill="#06b6d4" stroke="white" stroke-width="${big ? '2' : '2.5'}"/>
-    ${big ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="12" fill="none" stroke="#22d3ee" stroke-width="1" opacity=".4"/>` : ''}
+    <line x1="100" y1="100" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#22d3ee" stroke-width="${big?'2.5':'3'}" stroke-linecap="round" opacity=".8"/>
+    <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${big?'6':'7'}" fill="#06b6d4" stroke="white" stroke-width="${big?'2':'2.5'}"/>
+    ${big?`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="12" fill="none" stroke="#22d3ee" stroke-width="1" opacity=".4"/>`:''}
     <text x="100" y="194" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.5)" font-family="monospace">Γ</text>
   </svg>`;
 }
@@ -626,25 +631,33 @@ function renderStack() {
   const ap = allProfiles();
   const el = $('card-stack');
   el.innerHTML = '';
+
   if (!ap.length) { el.innerHTML = '<div class="stack-empty">読み込み中…</div>'; return; }
-  if (stackIndex >= ap.length) {
-    el.innerHTML = '<div class="stack-empty">全員見ました！<br><button onclick="resetCards()" style="margin-top:14px;border:0;border-radius:999px;background:#111827;color:#fff;padding:10px 22px;font:inherit;font-weight:900;cursor:pointer">再校正</button></div>';
+
+  if (state.deckPos >= state.deck.length) {
+    el.innerHTML = '<div class="stack-empty">全員見ました！<br><button onclick="resetDeck()" style="margin-top:14px;border:0;border-radius:999px;background:#111827;color:#fff;padding:10px 22px;font:inherit;font-weight:900;cursor:pointer">再校正</button></div>';
     return;
   }
-  for (let i = Math.min(2, ap.length - stackIndex - 1); i >= 1; i--) {
+
+  // Ghost cards (next 2 in deck)
+  for (let i = Math.min(2, state.deck.length - state.deckPos - 1); i >= 1; i--) {
+    const np = ap[state.deck[state.deckPos + i]];
+    if (!np) continue;
     const g = document.createElement('div');
     g.className = `stack-ghost stack-ghost-${i}`;
-    const np = ap[stackIndex + i];
     g.style.background = `linear-gradient(135deg,${np.g1},${np.g2})`;
     el.appendChild(g);
   }
+
+  const p = currentProfile();
   const card = document.createElement('div');
   card.className = 'swipe-card draggable';
   card.id = 'top-card';
-  card.innerHTML = '<span class="swipe-label label-nope">NOPE</span><span class="swipe-label label-like">LIKE ♥</span>' + cardInnerHtml(ap[stackIndex]);
+  card.innerHTML = '<span class="swipe-label label-nope">NOPE</span><span class="swipe-label label-like">LIKE ♥</span>' + cardInnerHtml(p);
   el.appendChild(card);
   initSwipe(card);
-  if (currentTab === 'analyzer') $('analyzerView').innerHTML = analyzerHtml();
+
+  if (state.currentTab === 'analyzer') $('analyzerView').innerHTML = analyzerHtml();
 }
 
 function initSwipe(card) {
@@ -652,6 +665,7 @@ function initSwipe(card) {
   const THRESHOLD = 80;
   const nope = card.querySelector('.label-nope');
   const like = card.querySelector('.label-like');
+
   card.addEventListener('pointerdown', e => {
     if (e.target.closest('button')) return;
     active = true; startX = e.clientX; curX = 0;
@@ -668,8 +682,8 @@ function initSwipe(card) {
   card.addEventListener('pointerup', () => {
     if (!active) return; active = false;
     card.classList.remove('dragging');
-    if (curX < -THRESHOLD) { swipeLeft(); }
-    else if (curX > THRESHOLD) { swipeRight(); }
+    if (curX < -THRESHOLD) swipeLeft();
+    else if (curX > THRESHOLD) swipeRight();
     else {
       card.classList.add('snap-back');
       card.style.transform = '';
@@ -678,7 +692,9 @@ function initSwipe(card) {
     }
     curX = 0;
   });
-  card.addEventListener('pointercancel', () => { active = false; card.classList.remove('dragging'); card.style.transform = ''; });
+  card.addEventListener('pointercancel', () => {
+    active = false; card.classList.remove('dragging'); card.style.transform = '';
+  });
 }
 
 function animateAndAdvance(cls, action) {
@@ -692,22 +708,28 @@ function swipeRight() { animateAndAdvance('fly-right', () => doMatch('共役整�
 function swipeTHRU()  { animateAndAdvance('fly-right', () => doMatch('THRU接続')); }
 
 function doOpen() {
-  const p = allProfiles()[stackIndex];
-  $('toast').textContent = `${p.name} は開放端として見送りました。`;
-  stackIndex++; renderStack();
+  const p = currentProfile();
+  toast(`${p.name} は開放端として見送りました。`);
+  state.deckPos++;
+  renderStack();
 }
 
 function doMatch(kind) {
-  const p = allProfiles()[stackIndex];
+  const p = currentProfile();
+  if (!p) return;
   const score = Math.min(100, scoreOf(p) + (kind === 'THRU接続' ? 7 : 0));
-  matches.unshift({...p, kind, score});
-  lastMatchedProfile = p;
-  stackIndex++;
+  state.matches.unshift({ ...p, kind, score });
+  state.lastMatchedProfile = p;
+  state.deckPos++;
   showMatchCelebration(p, kind, score);
-  if (currentTab === 'matches') $('matchList').innerHTML = matchListHtml();
+  if (state.currentTab === 'matches') $('matchList').innerHTML = matchListHtml();
 }
 
-function resetCards() { stackIndex = 0; renderStack(); }
+function resetDeck() {
+  shuffleDeck();
+  renderStack();
+  toast('測定面を再定義しました。最初から整合を取り直します。');
+}
 
 // ── Match celebration ──
 let particleAnim = null;
@@ -727,16 +749,9 @@ function showMatchCelebration(p, kind, score) {
     `<span class="hl">VSWR</span> = ${p.vswr}  <span class="hl">Q</span> = ${p.q}<br>` +
     `<span class="hl">Return Loss</span> = ${p.returnLoss}`;
   $('cel-result').style.display = 'none';
-  $('cel-result').innerHTML = '';
 
-  // Pre-fill freq hint from profile
   const freqNum = parseFloat(p.freq);
-  if (!isNaN(freqNum)) {
-    const mhz = p.freq.includes('GHz') ? freqNum * 1000 : freqNum;
-    $('cel-freq').value = mhz;
-  } else {
-    $('cel-freq').value = '';
-  }
+  $('cel-freq').value = !isNaN(freqNum) ? (p.freq.includes('GHz') ? freqNum * 1000 : freqNum) : '';
 
   cel.classList.add('show');
   startParticles();
@@ -750,54 +765,40 @@ $('cel-continue').addEventListener('click', () => {
 
 $('cel-calc-btn').addEventListener('click', () => {
   const freqMHz = parseFloat($('cel-freq').value);
-  if (!lastMatchedProfile || isNaN(freqMHz) || freqMHz <= 0) {
-    alert('周波数（MHz）を入力してね。');
-    return;
-  }
-  const p = lastMatchedProfile;
-  const { R: R2, X: X2 } = gammaToZ(p.gamma, p.phase);
-  // Assume source is 50Ω (standard)
-  const result = calcLNetwork(50, 0, R2, X2, freqMHz);
+  const p = state.lastMatchedProfile;
+  if (!p || isNaN(freqMHz) || freqMHz <= 0) { alert('周波数（MHz）を入力してね。'); return; }
+  const { R: R2 } = gammaToZ(p.gamma, p.phase);
+  const result = calcLNetwork(50, R2, freqMHz);
   const res = $('cel-result');
-  if (!result) {
-    res.innerHTML = 'インピーダンスの実部が同じため、L型整合網は不要かもしれません。';
-  } else {
-    res.innerHTML =
-      `<b>L型整合網（50Ω → Z<sub>L</sub>）</b><br>` +
-      `Q = <code>${result.Q}</code><br>` +
-      `<code>${result.series}</code><br>` +
-      `<code>${result.shunt}</code><br>` +
-      `<span style="opacity:.6;font-size:.75rem">※ 反転配置: ${result.seriesAlt} / ${result.shuntAlt}</span>`;
-  }
+  res.innerHTML = result
+    ? `<b>L型整合網（50Ω → Z<sub>L</sub>）</b><br>Q = <code>${result.Q}</code><br><code>${result.series}</code><br><code>${result.shunt}</code><br><span style="opacity:.6;font-size:.75rem">反転: ${result.seriesAlt} / ${result.shuntAlt}</span>`
+    : 'インピーダンスが近いため整合は不要かもしれません。';
   res.style.display = 'block';
 });
 
 // ── RF particles ──
 function startParticles() {
   const cv = $('rf-particles');
-  cv.width = window.innerWidth;
-  cv.height = window.innerHeight;
+  cv.width = window.innerWidth; cv.height = window.innerHeight;
   const ctx = cv.getContext('2d');
   const pts = [];
   const cols = ['#22d3ee','#3b82f6','#8b5cf6','#10b981','#f59e0b'];
 
-  function spawnBurst() {
-    for (let i = 0; i < 6; i++) {
+  const spawnInterval = setInterval(() => {
+    for (let i = 0; i < 5; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 1 + Math.random() * 3;
       pts.push({
         x: cv.width / 2 + (Math.random() - 0.5) * 200,
-        y: cv.height / 2 + (Math.random() - 0.5) * 200,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 1,
+        y: cv.height * 0.4 + (Math.random() - 0.5) * 150,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1,
         life: 1, size: 3 + Math.random() * 4,
         col: cols[Math.floor(Math.random() * cols.length)],
-        shape: Math.random() > 0.5 ? 'dot' : 'wave',
+        wave: Math.random() > 0.5,
       });
     }
-  }
-
-  const spawnInterval = setInterval(spawnBurst, 150);
+  }, 150);
+  cv._spawnInterval = spawnInterval;
 
   function loop() {
     ctx.clearRect(0, 0, cv.width, cv.height);
@@ -808,20 +809,14 @@ function startParticles() {
       ctx.globalAlpha = p.life * 0.85;
       ctx.fillStyle = p.col;
       ctx.beginPath();
-      if (p.shape === 'wave') {
-        ctx.rect(p.x, p.y, p.size * p.life * 2, p.size * p.life * 0.5);
-      } else {
-        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-      }
+      if (p.wave) ctx.rect(p.x, p.y, p.size * p.life * 2, p.size * p.life * 0.5);
+      else ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
     particleAnim = requestAnimationFrame(loop);
   }
   loop();
-
-  // Store interval reference for cleanup
-  cv._spawnInterval = spawnInterval;
 }
 
 function stopParticles() {
@@ -833,9 +828,8 @@ function stopParticles() {
 
 // ── Analyzer ──
 function analyzerHtml() {
-  const ap = allProfiles();
-  if (!ap.length) return '<div style="padding:2rem;text-align:center;color:#667085">読み込み中…</div>';
-  const p = ap[Math.min(stackIndex, ap.length - 1)];
+  const p = currentProfile() || (state.matches[0] || null);
+  if (!p) return '<div style="padding:2rem;text-align:center;color:#667085">プロフィールを探索してから確認してね。</div>';
   const score = scoreOf(p);
   const { R, X } = gammaToZ(p.gamma, p.phase);
   const sign = X >= 0 ? '+' : '−';
@@ -847,25 +841,46 @@ function analyzerHtml() {
         <div style="font-family:monospace;font-size:.8rem;color:#344cff;margin-top:4px">Z = ${R} ${sign} j${Math.abs(X)} Ω</div>
       </div>
       <div class="readouts">
-        ${[['MATCH SCORE',score,'総合的な整合しやすさ。高いほど終段が穏やか。'],['反射係数 Γ',p.gamma.toFixed(3),'低いほど、送った気持ちが負荷側に入っている。'],['VSWR',p.vswr,'1に近いほど良い。2を超えると人間関係も終段も熱い。'],['Q',p.q,'高いほど刺さるが、帯域は狭い。'],['Return Loss',p.returnLoss,'反射の少なさをdBで見て現実を受け止める。'],['R (実部)',R + ' Ω','抵抗成分。電力を消費する側。'],['X (虚部)',X + ' Ω','リアクタンス。エネルギーを蓄える側。']].map(([a,b,c])=>`<div class="readout"><div class="top"><b>${a}</b><strong>${b}</strong></div><p>${c}</p></div>`).join('')}
+        ${[
+          ['MATCH SCORE', score, '総合的な整合しやすさ。高いほど終段が穏やか。'],
+          ['反射係数 Γ', p.gamma.toFixed(3), '低いほど、送った気持ちが負荷側に入っている。'],
+          ['VSWR', p.vswr, '1に近いほど良い。2を超えると人間関係も終段も熱い。'],
+          ['Q', p.q, '高いほど刺さるが、帯域は狭い。'],
+          ['Return Loss', p.returnLoss, '反射の少なさをdBで見て現実を受け止める。'],
+          ['R (実部)', R + ' Ω', '抵抗成分。電力を消費する側。'],
+          ['X (虚部)', X + ' Ω', 'リアクタンス。エネルギーを蓄える側。'],
+        ].map(([a,b,c]) => `<div class="readout"><div class="top"><b>${a}</b><strong>${b}</strong></div><p>${c}</p></div>`).join('')}
       </div>
     </div>`;
 }
 
+// ── Match list ──
 function matchListHtml() {
-  if (!matches.length) return '<div class="empty">まだ整合履歴がありません。まずはMATCHして、反射波の少ない関係を探しましょう。</div>';
-  return matches.map(m => {
+  if (!state.matches.length) return '<div class="empty">まだ整合履歴がありません。まずはMATCHして、反射波の少ない関係を探しましょう。</div>';
+  return state.matches.map((m, i) => {
     const { R, X } = gammaToZ(m.gamma, m.phase);
     const sign = X >= 0 ? '+' : '−';
-    return `<div class="match-item"><div class="match-left"><div class="heartbox" style="background:linear-gradient(135deg,${m.g1},${m.g2})">${m.avatar}</div><div>
-      <div style="font-weight:1000">${m.name} と整合</div>
-      <div style="font-size:11px;color:#7a8497;font-weight:850;font-family:monospace">${m.kind} | score ${m.score} | Z=${R}${sign}j${Math.abs(X)}Ω</div>
-    </div></div></div>`;
+    return `<div class="match-item">
+      <div class="match-left">
+        <div class="heartbox" style="background:linear-gradient(135deg,${m.g1},${m.g2})">${m.avatar}</div>
+        <div>
+          <div style="font-weight:1000">${m.name} と整合</div>
+          <div style="font-size:11px;color:#7a8497;font-weight:850;font-family:monospace">${m.kind} | score ${m.score} | Z=${R}${sign}j${Math.abs(X)}Ω</div>
+        </div>
+      </div>
+      <button class="chat-btn" onclick="chatToast('${m.name}')">会話</button>
+    </div>`;
   }).join('');
 }
 
+function chatToast(name) {
+  toast(`${name} との会話のS21は、まだ測定中です。`);
+  setTimeout(() => {}, 0);
+}
+
+// ── Tab switching ──
 function setTab(tab) {
-  currentTab = tab;
+  state.currentTab = tab;
   document.querySelectorAll('.nav button[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   $('profileView').classList.toggle('hidden', tab !== 'profile');
   $('analyzerView').classList.toggle('hidden', tab !== 'analyzer');
@@ -877,17 +892,17 @@ function setTab(tab) {
 document.querySelectorAll('.nav button[data-tab]').forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
 
 $('qToggle').addEventListener('click', () => {
-  highQ = !highQ;
-  $('qToggle').className = highQ ? 'on' : '';
-  $('qToggle').textContent = `高Q許容 ${highQ ? 'ON' : 'OFF'}`;
-  $('toast').textContent = highQ ? '高Qな相手も許容します。刺さる周波数帯は狭めです。' : '広帯域寄りで探します。深さより扱いやすさ重視。';
+  state.highQ = !state.highQ;
+  $('qToggle').className = state.highQ ? 'on' : '';
+  $('qToggle').textContent = `高Q許容 ${state.highQ ? 'ON' : 'OFF'}`;
+  toast(state.highQ ? '高Qな相手も許容します。刺さる周波数帯は狭めです。' : '広帯域寄りで探します。深さより扱いやすさ重視。');
   renderStack();
 });
 
 $('resetBtn').addEventListener('click', () => {
-  stackIndex = 0; matches = [];
-  $('toast').textContent = '測定面を再定義しました。最初から整合を取り直します。';
-  setTab('profile'); renderStack();
+  state.matches = [];
+  resetDeck();
+  setTab('profile');
 });
 
 // ── Registration ──
@@ -934,21 +949,27 @@ function initRegistration() {
       q, gamma, vswr, freq: '???', phase: '+0°', returnLoss: rl,
       tags: job.split(/[,、\s]+/).filter(Boolean).slice(0, 5),
       bio,
-      wants: [$('reg-want1').value||'相性のいい人',$('reg-want2').value||'誠実な人',$('reg-want3').value||'落ち着いた人'].filter(w=>w.trim()),
+      wants: [$('reg-want1').value||'相性のいい人', $('reg-want2').value||'誠実な人', $('reg-want3').value||'落ち着いた人'].filter(w=>w.trim()),
       g1: REG_COLORS[selColor][0], g2: REG_COLORS[selColor][1],
     };
     const stored = userProfiles();
     stored.unshift(profile);
     localStorage.setItem('seigou_profiles', JSON.stringify(stored));
     overlay.classList.remove('open');
-    resetCards();
-    $('toast').textContent = `${name} のプロフィールを登録しました。`;
+    shuffleDeck();
+    renderStack();
+    toast(`${name} のプロフィールを登録しました。デッキをシャッフルしました。`);
   });
 }
 
 fetch('profiles.json')
   .then(r => r.json())
-  .then(data => { profiles = data; renderStack(); initRegistration(); })
+  .then(data => {
+    profiles = data;
+    shuffleDeck();
+    renderStack();
+    initRegistration();
+  })
   .catch(() => { $('card-stack').innerHTML = '<div class="stack-empty">プロフィールの読み込みに失敗しました。</div>'; });
 
 </script>
