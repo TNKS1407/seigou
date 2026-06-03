@@ -272,7 +272,7 @@
     .cel-calc button{border:none;border-radius:10px;background:linear-gradient(135deg,#344cff,#00a6c8);color:#fff;font:inherit;font-weight:900;font-size:.85rem;padding:.45rem 1rem;cursor:pointer;white-space:nowrap;}
     .cel-result{width:100%;max-width:320px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.2);border-radius:12px;padding:.7rem 1rem;color:#e2e8f0;font-size:.8rem;line-height:1.9;margin-bottom:1rem;display:none;}
     .cel-result code{color:#22d3ee;font-family:'Courier New',monospace;}
-    .cel-continue{border:1.5px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:999px;padding:.55rem 1.5rem;font:inherit;font-weight:900;font-size:.88rem;cursor:pointer;transition:background .15s;}
+    .cel-continue{position:sticky;bottom:.5rem;border:1.5px solid rgba(255,255,255,.45);background:rgba(0,0,0,.4);color:#fff;border-radius:999px;padding:.65rem 2rem;font:inherit;font-weight:900;font-size:.95rem;cursor:pointer;transition:background .15s;margin-top:.5rem;}
     .cel-continue:hover{background:rgba(255,255,255,.08);}
     #rf-particles{position:fixed;inset:0;z-index:499;pointer-events:none;}
     /* ── Card stack & swipe ── */
@@ -755,6 +755,8 @@ function showMatchCelebration(p, kind, score) {
 
   cel.classList.add('show');
   startParticles();
+  if (dismissCelebration._timer) clearTimeout(dismissCelebration._timer);
+  dismissCelebration._timer = setTimeout(dismissCelebration, 4000);
 }
 
 $('cel-continue').addEventListener('click', () => {
