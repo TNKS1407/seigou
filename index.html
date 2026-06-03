@@ -31,7 +31,7 @@
       padding:18px;
     }
     button{font:inherit}
-    .app{width:min(1120px,100%);margin:auto}
+    .app{width:min(480px,100%);margin:auto}
     header{
       display:flex;
       justify-content:space-between;
@@ -80,10 +80,11 @@
     .notice button.on{background:var(--blue);color:#fff}
     .layout{
       display:grid;
-      grid-template-columns:minmax(0,1fr) 340px;
+      grid-template-columns:1fr;
       gap:18px;
       align-items:start;
     }
+    aside{display:none;}
     .card{
       border:1px solid #fff;
       border-radius:30px;
@@ -247,6 +248,68 @@
       .hero{padding:20px}
       .name{font-size:36px}
     }
+    /* ── Z impedance display ── */
+    .z-display{font-size:1rem;font-weight:900;letter-spacing:-.02em;margin:5px 0 2px;opacity:.93;font-family:'Courier New',monospace;}
+    .z-real{color:#fff}
+    .z-sep{color:rgba(255,255,255,.6);margin:0 2px}
+    .z-imag{color:#7dd3fc}
+    /* ── Match celebration ── */
+    .match-celebrate{position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1.5rem;background:linear-gradient(160deg,#0f0a2e,#0d1b4b,#0a2e1a);opacity:0;pointer-events:none;transition:opacity .35s;overflow:auto;}
+    .match-celebrate.show{opacity:1;pointer-events:all;}
+    .cel-title{font-size:2.6rem;font-weight:900;color:#fff;letter-spacing:-.06em;text-align:center;line-height:1;margin-bottom:.3rem;}
+    .cel-sub{color:rgba(255,255,255,.65);font-weight:800;font-size:.9rem;text-align:center;margin-bottom:1.5rem;}
+    .cel-avatars{display:flex;gap:1.5rem;align-items:center;margin-bottom:1.25rem;}
+    .cel-avatar{width:80px;height:80px;border-radius:22px;display:grid;place-items:center;font-size:38px;border:3px solid rgba(255,255,255,.35);box-shadow:0 0 28px rgba(100,200,255,.2);}
+    .cel-heart{font-size:2rem;animation:pulse .8s ease-in-out infinite;}
+    @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.2);}}
+    .cel-params{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:.85rem 1.25rem;text-align:left;color:#e2e8f0;font-family:'Courier New',monospace;font-size:.78rem;line-height:1.9;margin-bottom:1.25rem;width:100%;max-width:320px;}
+    .cel-params .hl{color:#22d3ee;}
+    .cel-divider{color:rgba(255,255,255,.25);font-size:.7rem;font-weight:900;letter-spacing:.08em;margin-bottom:.75rem;text-align:center;}
+    .cel-calc{width:100%;max-width:320px;display:flex;gap:.5rem;margin-bottom:.75rem;}
+    .cel-calc input{flex:1;border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);border-radius:10px;padding:.45rem .75rem;font:inherit;font-size:.85rem;color:#fff;outline:none;transition:border-color .15s;}
+    .cel-calc input:focus{border-color:#22d3ee;}
+    .cel-calc button{border:none;border-radius:10px;background:linear-gradient(135deg,#344cff,#00a6c8);color:#fff;font:inherit;font-weight:900;font-size:.85rem;padding:.45rem 1rem;cursor:pointer;white-space:nowrap;}
+    .cel-result{width:100%;max-width:320px;background:rgba(34,211,238,.08);border:1px solid rgba(34,211,238,.2);border-radius:12px;padding:.7rem 1rem;color:#e2e8f0;font-size:.8rem;line-height:1.9;margin-bottom:1rem;display:none;}
+    .cel-result code{color:#22d3ee;font-family:'Courier New',monospace;}
+    .cel-continue{border:1.5px solid rgba(255,255,255,.25);background:transparent;color:#fff;border-radius:999px;padding:.55rem 1.5rem;font:inherit;font-weight:900;font-size:.88rem;cursor:pointer;transition:background .15s;}
+    .cel-continue:hover{background:rgba(255,255,255,.08);}
+    #rf-particles{position:fixed;inset:0;z-index:499;pointer-events:none;}
+    /* ── Card stack & swipe ── */
+    #profileView{background:none;border:none;box-shadow:none;overflow:visible;}
+    .card-stack{position:relative;min-height:320px;}
+    .swipe-card{width:100%;background:#fff;border:1.5px solid rgba(255,255,255,.8);border-radius:30px;overflow:hidden;box-shadow:var(--shadow);touch-action:pan-y;user-select:none;will-change:transform;position:relative;}
+    .swipe-card.draggable{cursor:grab;}
+    .swipe-card.dragging{cursor:grabbing;}
+    .swipe-card.fly-left{transform:translateX(-140%) rotate(-28deg)!important;opacity:0;transition:transform .35s ease,opacity .35s ease!important;pointer-events:none;}
+    .swipe-card.fly-right{transform:translateX(140%) rotate(28deg)!important;opacity:0;transition:transform .35s ease,opacity .35s ease!important;pointer-events:none;}
+    .swipe-card.snap-back{transition:transform .3s cubic-bezier(.34,1.56,.64,1)!important;}
+    .stack-ghost{position:absolute;inset:0;border-radius:30px;pointer-events:none;transition:transform .2s;}
+    .stack-ghost-1{transform:scale(0.96) translateY(10px);z-index:-1;box-shadow:var(--shadow);}
+    .stack-ghost-2{transform:scale(0.92) translateY(20px);z-index:-2;box-shadow:var(--shadow);}
+    .swipe-label{position:absolute;top:1.75rem;padding:.4rem .8rem;border-radius:8px;font-size:1rem;font-weight:900;border:3px solid;opacity:0;pointer-events:none;z-index:10;transition:opacity .1s;}
+    .label-nope{left:1.25rem;color:var(--red);border-color:var(--red);}
+    .label-like{right:1.25rem;color:var(--green);border-color:var(--green);}
+    .stack-empty{background:#fff;border-radius:30px;padding:3rem;text-align:center;color:#667085;font-weight:800;box-shadow:var(--shadow);}
+    /* ── Registration modal ── */
+    .reg-overlay{position:fixed;inset:0;background:rgba(24,32,51,.55);z-index:300;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .2s;}
+    .reg-overlay.open{opacity:1;pointer-events:all;}
+    .reg-modal{background:#f7fbff;border-radius:28px;max-width:480px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 24px 70px rgba(70,90,160,.3);}
+    .reg-head{padding:1.25rem 1.5rem;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#f7fbff;z-index:1;}
+    .reg-head h2{margin:0;font-size:1.05rem;letter-spacing:-.03em;}
+    .reg-body{padding:1.25rem 1.5rem;display:grid;gap:.9rem;}
+    .reg-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
+    .reg-field label{display:block;font-size:.76rem;font-weight:900;color:#657084;margin-bottom:.28rem;}
+    .reg-field input,.reg-field select,.reg-field textarea{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:.52rem .75rem;font:inherit;font-size:.86rem;color:var(--ink);background:#fff;outline:none;transition:border-color .15s;box-sizing:border-box;}
+    .reg-field input:focus,.reg-field select:focus,.reg-field textarea:focus{border-color:var(--blue);}
+    .reg-field textarea{resize:vertical;min-height:78px;}
+    .reg-q-row{display:flex;align-items:center;gap:.75rem;}
+    .reg-q-row input[type=range]{flex:1;accent-color:var(--blue);}
+    .reg-q-row span{font-weight:900;color:var(--blue);min-width:2rem;text-align:right;}
+    .reg-colors{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:.2rem;}
+    .reg-color-swatch{width:30px;height:30px;border-radius:50%;border:3px solid transparent;cursor:pointer;transition:transform .15s,box-shadow .15s;}
+    .reg-color-swatch.sel{border-color:#fff;box-shadow:0 0 0 2.5px var(--blue);transform:scale(1.15);}
+    .reg-submit{background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;border:none;border-radius:16px;padding:.75rem 1.5rem;font:inherit;font-weight:900;font-size:.94rem;cursor:pointer;width:100%;margin-top:.25rem;}
+    .reg-open-btn{border:0;border-radius:17px;padding:10px 14px;background:linear-gradient(135deg,var(--blue),var(--cyan));color:#fff;font-weight:900;cursor:pointer;white-space:nowrap;}
   </style>
 </head>
 <body>
@@ -262,7 +325,8 @@
       <nav class="nav">
         <button class="active" data-tab="profile">探索</button>
         <button data-tab="analyzer">解析</button>
-        <button data-tab="matches">整合履歴</button>
+        <button data-tab="matches">履歴</button>
+        <button class="reg-open-btn" id="regOpenBtn">+ 登録</button>
       </nav>
     </header>
 
@@ -276,7 +340,9 @@
 
     <div class="layout">
       <main>
-        <section id="profileView" class="card"></section>
+        <section id="profileView">
+          <div class="card-stack" id="card-stack"></div>
+        </section>
 
         <section id="analyzerView" class="card analyzer hidden"></section>
 
@@ -310,89 +376,194 @@
     </div>
   </div>
 
-<script>
-const profiles = [
-  {
-    name:"Sho", age:31, job:"電気系エンジニア", avatar:"👨‍🔧",
-    impedance:"50Ω系", q:82, gamma:0.08, vswr:1.17, freq:"27.12 MHz",
-    phase:"-7°", returnLoss:"21.9 dB",
-    tags:["RF","電源","測定器","プラズマ","Smithチャート"],
-    bio:"50Ω系の電気屋です。見た目のスペックより、実使用条件での安定性を重視します。一点整合で盛り上がるより、温度変化・負荷変動・寄生成分込みで長くVSWRを低く保てる関係が理想です。少し高Qなので、刺さる周波数帯は狭めです。ただ、共振点が合うとそこそこ深く入ります。",
-    wants:["虚部を打ち消してくれる人","寄生成分込みで話せる人","負荷変動にやさしい人"],
-    g1:"#4f46e5", g2:"#06b6d4"
-  },
-  {
-    name:"Maki", age:29, job:"EMC試験エンジニア", avatar:"🧪",
-    impedance:"やや容量性", q:64, gamma:0.12, vswr:1.27, freq:"150 kHz〜1 GHz",
-    phase:"+12°", returnLoss:"18.4 dB",
-    tags:["EMC","ノイズ対策","フェライト","筐体","接地"],
-    bio:"雑音の多い環境でも落ち着いています。表面上の波形だけで判断されるより、グランドの取り回しや結合経路まで一緒に見てくれる人が好きです。近接界で急に距離を詰められると少し反射します。",
-    wants:["シールドを過信しない人","コモンモードに気づく人","測定条件を雑にしない人"],
-    g1:"#d946ef", g2:"#fb7185"
-  },
-  {
-    name:"Ren", age:34, job:"組込みソフト屋", avatar:"🧑‍💻",
-    impedance:"高インピーダンス", q:71, gamma:0.18, vswr:1.44, freq:"10 ms周期",
-    phase:"+3°", returnLoss:"14.9 dB",
-    tags:["C言語","RTOS","UART","割込み","状態遷移"],
-    bio:"初期化シーケンスと例外処理を大切にします。普段は静かですが、ウォッチドッグが吠えると急に饒舌になります。曖昧な仕様をそのまま投げられると未定義動作になります。",
-    wants:["仕様を一緒に固められる人","例外系を軽視しない人","デバッグログを読んでくれる人"],
-    g1:"#10b981", g2:"#14b8a6"
-  },
-  {
-    name:"Aoi", age:30, job:"高周波回路設計", avatar:"📡",
-    impedance:"共振点鋭め", q:93, gamma:0.05, vswr:1.11, freq:"2.4 GHz",
-    phase:"-2°", returnLoss:"26.0 dB",
-    tags:["VNA","LNA","アンテナ","基板","Sパラ"],
-    bio:"会話のS21は高めですが、入力マッチングには少し癖があります。理想は、広帯域に誰とでも浅く合うより、狭帯域でもちゃんと深く整合する関係です。測定前の校正を忘れる人には厳しめです。",
-    wants:["OPEN/SHORT/LOADを大事にする人","位相まで見てくれる人","基板の端を雑に扱わない人"],
-    g1:"#3b82f6", g2:"#8b5cf6"
-  }
-];
+<!-- Match celebration -->
+<canvas id="rf-particles"></canvas>
+<div class="match-celebrate" id="match-celebrate">
+  <div class="cel-title" id="cel-title">整合成功！</div>
+  <div class="cel-sub" id="cel-sub">S11が急降下しています</div>
+  <div class="cel-avatars">
+    <div class="cel-avatar" id="cel-avatar-you" style="background:linear-gradient(135deg,#344cff,#06b6d4)">👤</div>
+    <div class="cel-heart">♥</div>
+    <div class="cel-avatar" id="cel-avatar-them">❓</div>
+  </div>
+  <div class="cel-params" id="cel-params"></div>
+  <div class="cel-divider">── 整合回路を計算する ──</div>
+  <div class="cel-calc">
+    <input type="number" id="cel-freq" placeholder="周波数 (MHz)" min="0.001" step="any" />
+    <button id="cel-calc-btn">計算</button>
+  </div>
+  <div class="cel-result" id="cel-result"></div>
+  <button class="cel-continue" id="cel-continue">次へ進む →</button>
+</div>
 
-let index = 0;
+<!-- Registration modal -->
+<div class="reg-overlay" id="regOverlay">
+  <div class="reg-modal" onclick="event.stopPropagation()">
+    <div class="reg-head">
+      <h2>🔧 プロフィール登録</h2>
+      <button id="regCloseBtn" style="background:none;border:none;font-size:1.2rem;cursor:pointer;color:#667085">✕</button>
+    </div>
+    <div class="reg-body">
+      <div class="reg-row">
+        <div class="reg-field"><label>名前</label><input id="reg-name" placeholder="名前" /></div>
+        <div class="reg-field"><label>年齢</label><input id="reg-age" type="number" min="18" max="99" placeholder="26" /></div>
+      </div>
+      <div class="reg-field"><label>職種</label><input id="reg-job" placeholder="例: RF回路設計" /></div>
+      <div class="reg-field">
+        <label>インピーダンスの傾向</label>
+        <select id="reg-impedance">
+          <option>50Ω系</option><option>容量性</option><option>誘導性</option>
+          <option>高インピーダンス</option><option>低インピーダンス</option>
+          <option>共振型</option><option>広帯域</option><option>非線形</option>
+        </select>
+      </div>
+      <div class="reg-field">
+        <label>Q値（高いほど刺さるが帯域は狭い）</label>
+        <div class="reg-q-row">
+          <input type="range" id="reg-q" min="20" max="100" value="65" />
+          <span id="reg-q-val">65</span>
+        </div>
+      </div>
+      <div class="reg-field">
+        <label>アバター</label>
+        <select id="reg-avatar">
+          <option value="👤">👤 デフォルト</option><option value="👨‍💻">👨‍💻 エンジニア</option>
+          <option value="👩‍🔬">👩‍🔬 研究者</option><option value="🧪">🧪 実験屋</option>
+          <option value="📡">📡 RF屋</option><option value="⚡">⚡ 電源屋</option>
+          <option value="🎛️">🎛️ オーディオ</option><option value="🔬">🔬 顕微鏡</option>
+          <option value="🌀">🌀 量子系</option>
+        </select>
+      </div>
+      <div class="reg-field">
+        <label>カードカラー</label>
+        <div class="reg-colors" id="reg-colors"></div>
+      </div>
+      <div class="reg-field"><label>自己紹介</label><textarea id="reg-bio" placeholder="自分のインピーダンス特性について…"></textarea></div>
+      <div class="reg-field">
+        <label>欲しい整合（最大3つ）</label>
+        <input id="reg-want1" placeholder="例: グランドを大切にする人" style="margin-bottom:.4rem" />
+        <input id="reg-want2" placeholder="例: 浮遊容量を無視しない人" style="margin-bottom:.4rem" />
+        <input id="reg-want3" placeholder="例: 位相を気にする人" />
+      </div>
+      <button class="reg-submit" id="reg-submit">登録する ✓</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let profiles = [];
+let stackIndex = 0;
 let highQ = true;
 let matches = [];
-let currentTab = "profile";
+let currentTab = 'profile';
+let lastMatchedProfile = null;
 
-const $ = (id)=>document.getElementById(id);
-const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+function userProfiles() {
+  try { return JSON.parse(localStorage.getItem('seigou_profiles') || '[]'); } catch { return []; }
+}
+function allProfiles() { return [...userProfiles(), ...profiles]; }
 
-function scoreOf(p){
+const $ = id => document.getElementById(id);
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+// ── RF math ──
+function gammaToZ(gamma, phaseStr, Z0 = 50) {
+  const theta = parseFloat(phaseStr) * Math.PI / 180;
+  const re = gamma * Math.cos(theta);
+  const im = gamma * Math.sin(theta);
+  const denom = (1 - re) ** 2 + im ** 2;
+  const R = Z0 * (1 - re ** 2 - im ** 2) / denom;
+  const X = Z0 * 2 * im / denom;
+  return { R: Math.round(R * 10) / 10, X: Math.round(X * 10) / 10 };
+}
+
+function zDisplayHtml(gamma, phaseStr) {
+  const { R, X } = gammaToZ(gamma, phaseStr);
+  const sign = X >= 0 ? '+' : '−';
+  return `<span class="z-real">${R}</span><span class="z-sep"> ${sign} j</span><span class="z-imag">${Math.abs(X)}</span><span class="z-sep"> Ω</span>`;
+}
+
+function calcLNetwork(R1, X1, R2, X2, freqMHz) {
+  // Conjugate match: transform Z1=R1+jX1 into Z2*=R2-jX2
+  // Simplified: real-part matching with L-network, ignoring reactive parts for first step
+  const omega = 2 * Math.PI * freqMHz * 1e6;
+  const Rh = Math.max(R1, R2), Rl = Math.min(R1, R2);
+  if (Rh <= 0 || Rl <= 0 || Rh <= Rl) return null;
+  const Q = Math.sqrt(Rh / Rl - 1);
+  const Xs = Q * Rl;
+  const Xp = Rh / Q;
+  function toComponent(X, label) {
+    if (X > 0) {
+      const nH = Math.round(X / omega * 1e12) / 1000;
+      return `${label}: L = ${nH} nH`;
+    } else {
+      const pF = Math.round(-1e15 / (omega * X)) / 1000;
+      return `${label}: C = ${pF} pF`;
+    }
+  }
+  return {
+    Q: Math.round(Q * 100) / 100,
+    series: toComponent(Xs, '直列'),
+    shunt: toComponent(-Xp, '並列'),
+    seriesAlt: toComponent(-Xs, '直列'),
+    shuntAlt: toComponent(Xp, '並列'),
+  };
+}
+
+function scoreOf(p) {
   const gammaScore = (1 - clamp(p.gamma / 0.3, 0, 1)) * 38;
   const qTarget = highQ ? 88 : 62;
   const qScore = (1 - Math.abs(p.q - qTarget) / 100) * 24;
   const vswrScore = (1 - clamp((p.vswr - 1) / 0.8, 0, 1)) * 26;
-  const tagScore = p.tags.some(t => ["RF","Sパラ","電源","VNA"].includes(t)) ? 12 : 5;
+  const tagScore = p.tags.some(t => ['RF','Sパラ','電源','VNA'].includes(t)) ? 12 : 5;
   return Math.round(gammaScore + qScore + vswrScore + tagScore);
 }
 
-function smithSvg(p, big=false){
+// ── Smith chart (enhanced) ──
+function smithSvg(p, big) {
   const phase = parseFloat(p.phase) * Math.PI / 180;
-  const r = clamp(p.gamma,0,0.4) * 145;
+  const r = clamp(p.gamma, 0, 0.4) * 145;
   const x = 100 + r * Math.cos(phase);
   const y = 100 - r * Math.sin(phase);
-  const cls = big ? "" : "smith-bg";
-  return `
-  <svg class="${cls}" viewBox="0 0 200 200">
-    <circle cx="100" cy="100" r="78" fill="rgba(255,255,255,.58)" stroke="rgba(255,255,255,.72)" stroke-width="2"/>
-    <circle cx="132" cy="100" r="46" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.5"/>
-    <circle cx="158" cy="100" r="20" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="1.5"/>
-    <circle cx="86" cy="70" r="52" fill="none" stroke="rgba(255,255,255,.42)" stroke-width="1.2"/>
-    <circle cx="86" cy="130" r="52" fill="none" stroke="rgba(255,255,255,.42)" stroke-width="1.2"/>
-    <path d="M22 100 H178" stroke="rgba(255,255,255,.68)" stroke-width="1.5"/>
-    <path d="M100 22 C132 54 150 72 178 100" fill="none" stroke="rgba(255,255,255,.48)" stroke-width="1.2"/>
-    <path d="M100 178 C132 146 150 128 178 100" fill="none" stroke="rgba(255,255,255,.48)" stroke-width="1.2"/>
-    <circle cx="100" cy="100" r="5" fill="#fff"/>
-    <line x1="100" y1="100" x2="${x}" y2="${y}" stroke="#22d3ee" stroke-width="4" stroke-linecap="round"/>
-    <circle cx="${x}" cy="${y}" r="7" fill="#06b6d4" stroke="white" stroke-width="3"/>
-    <text x="100" y="194" text-anchor="middle" font-size="12" fill="white">Γ → 0</text>
+  const cls = big ? '' : 'smith-bg';
+  const gridOpacity = big ? '.35' : '.22';
+  const strokeW = big ? '1' : '0.8';
+
+  // Constant-R circles (normalized): r=0, 0.3, 0.5, 1, 2, 5
+  // Center: (r/(r+1)*156 + 22, 100), radius: 1/(r+1)*78
+  const rVals = [0, 0.3, 0.5, 1, 2, 5];
+  const rCircles = rVals.map(rv => {
+    const cx = 22 + rv / (rv + 1) * 156;
+    const radius = 78 / (rv + 1);
+    return `<circle cx="${cx.toFixed(1)}" cy="100" r="${radius.toFixed(1)}" fill="none" stroke="rgba(255,255,255,${gridOpacity})" stroke-width="${strokeW}"/>`;
+  }).join('');
+
+  // Constant-X arcs (simplified as full circles clipped to unit circle area)
+  const xVals = [0.5, 1, 2, -0.5, -1, -2];
+  const xArcs = xVals.map(xv => {
+    const cy = 100 - 78 / xv;
+    const radius = Math.abs(78 / xv);
+    return `<circle cx="178" cy="${cy.toFixed(1)}" r="${radius.toFixed(1)}" fill="none" stroke="rgba(255,255,255,${gridOpacity})" stroke-width="${strokeW}" clip-path="url(#sc)"/>`;
+  }).join('');
+
+  return `<svg class="${cls}" viewBox="0 0 200 200">
+    <defs>
+      <clipPath id="sc"><circle cx="100" cy="100" r="78"/></clipPath>
+    </defs>
+    <circle cx="100" cy="100" r="78" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.72)" stroke-width="1.5"/>
+    ${rCircles}
+    ${xArcs}
+    <path d="M22 100 H178" stroke="rgba(255,255,255,.5)" stroke-width="1"/>
+    <circle cx="100" cy="100" r="3" fill="rgba(255,255,255,.4)"/>
+    <line x1="100" y1="100" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#22d3ee" stroke-width="${big ? '2.5' : '3'}" stroke-linecap="round" opacity=".8"/>
+    <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${big ? '6' : '7'}" fill="#06b6d4" stroke="white" stroke-width="${big ? '2' : '2.5'}"/>
+    ${big ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="12" fill="none" stroke="#22d3ee" stroke-width="1" opacity=".4"/>` : ''}
+    <text x="100" y="194" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.5)" font-family="monospace">Γ</text>
   </svg>`;
 }
 
-function circuitSvg(){
-  return `
-  <svg viewBox="0 0 260 96" style="width:100%;height:96px">
+function circuitSvg() {
+  return `<svg viewBox="0 0 260 96" style="width:100%;height:96px">
     <path d="M18 48 H56" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
     <path d="M56 48 c8 -18 18 -18 26 0 c8 18 18 18 26 0 c8 -18 18 -18 26 0" fill="none" stroke="#0f766e" stroke-width="4" stroke-linecap="round"/>
     <path d="M134 48 H164" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
@@ -405,160 +576,381 @@ function circuitSvg(){
   </svg>`;
 }
 
-function profileHtml(){
-  const p = profiles[index % profiles.length];
+function cardInnerHtml(p) {
   const score = scoreOf(p);
+  const { R, X } = gammaToZ(p.gamma, p.phase);
+  const sign = X >= 0 ? '+' : '−';
   return `
     <div class="hero" style="--g1:${p.g1};--g2:${p.g2}">
       ${smithSvg(p)}
       <div class="hero-inner">
         <div class="avatar">${p.avatar}</div>
         <div>
-          <div class="name-row">
-            <div class="name">${p.name}</div>
-            <div class="age">${p.age}</div>
-          </div>
+          <div class="name-row"><div class="name">${p.name}</div><div class="age">${p.age}</div></div>
           <div class="job">${p.job} / ${p.impedance}</div>
-          <p class="quote">“相性”を雰囲気で終わらせず、Γと位相まで見にいくタイプです。</p>
+          <div class="z-display">Z = <span class="z-real">${R}</span><span class="z-sep"> ${sign} j</span><span class="z-imag">${Math.abs(X)}</span><span class="z-sep"> Ω</span></div>
+          <p class="quote" style="font-size:12px;margin-top:4px">Γ = ${p.gamma.toFixed(2)} ∠${p.phase}  |  Q = ${p.q}</p>
         </div>
       </div>
     </div>
-    <div class="body">
-      <div>
-        <div class="tags">${p.tags.map(t=>`<span class="tag">${t}</span>`).join("")}</div>
-        <div class="bio">${p.bio}</div>
-        <div class="wants">
-          <div class="section-title">✨ こういう整合を希望</div>
-          <ul>${p.wants.map(w=>`<li>${w}</li>`).join("")}</ul>
-        </div>
-      </div>
-      <div class="sidegrid">
-        <div class="score">
-          <div class="score-number">${score}</div>
-          <div class="score-label">MATCH SCORE</div>
-          <div class="meter" style="--score:${score}%"><span></span></div>
-        </div>
-        <div class="params">
-          <div class="param"><small>VSWR</small><b>${p.vswr}</b></div>
-          <div class="param"><small>Return Loss</small><b>${p.returnLoss}</b></div>
-          <div class="param"><small>中心周波数</small><b style="font-size:16px">${p.freq}</b></div>
-          <div class="param"><small>Phase</small><b>${p.phase}</b></div>
-        </div>
-        <div class="circuit">${circuitSvg()}</div>
+    <div class="body"><div>
+      <div class="tags">${p.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      <div class="bio">${p.bio}</div>
+      <div class="wants"><div class="section-title">✨ こういう整合を希望</div>
+        <ul>${p.wants.map(w=>`<li>${w}</li>`).join('')}</ul>
       </div>
     </div>
+    <div class="sidegrid">
+      <div class="score">
+        <div class="score-number">${score}</div>
+        <div class="score-label">MATCH SCORE</div>
+        <div class="meter" style="--score:${score}%"><span></span></div>
+      </div>
+      <div class="params">
+        <div class="param"><small>VSWR</small><b>${p.vswr}</b></div>
+        <div class="param"><small>Return Loss</small><b>${p.returnLoss}</b></div>
+        <div class="param"><small>中心周波数</small><b style="font-size:14px">${p.freq}</b></div>
+        <div class="param"><small>Phase</small><b>${p.phase}</b></div>
+      </div>
+      <div class="circuit">${circuitSvg()}</div>
+    </div></div>
     <div class="buttons">
-      <button class="action open" onclick="doOpen()"><span class="icon">✕</span>OPEN<div class="hint">ちがうかも</div></button>
-      <button class="action match" onclick="doMatch('共役整合')"><span class="icon">♥</span>MATCH<div class="hint">いいね</div></button>
-      <button class="action thru" onclick="doMatch('THRU接続')"><span class="icon">📡</span>THRU<div class="hint">超いいね</div></button>
-    </div>
-  `;
+      <button class="action open" onclick="swipeLeft()"><span class="icon">✕</span>OPEN<div class="hint">ちがうかも</div></button>
+      <button class="action match" onclick="swipeRight()"><span class="icon">♥</span>MATCH<div class="hint">いいね</div></button>
+      <button class="action thru" onclick="swipeTHRU()"><span class="icon">📡</span>THRU<div class="hint">超いいね</div></button>
+    </div>`;
 }
 
-function analyzerHtml(){
-  const p = profiles[index % profiles.length];
+// ── Card stack ──
+function renderStack() {
+  const ap = allProfiles();
+  const el = $('card-stack');
+  el.innerHTML = '';
+  if (!ap.length) { el.innerHTML = '<div class="stack-empty">読み込み中…</div>'; return; }
+  if (stackIndex >= ap.length) {
+    el.innerHTML = '<div class="stack-empty">全員見ました！<br><button onclick="resetCards()" style="margin-top:14px;border:0;border-radius:999px;background:#111827;color:#fff;padding:10px 22px;font:inherit;font-weight:900;cursor:pointer">再校正</button></div>';
+    return;
+  }
+  for (let i = Math.min(2, ap.length - stackIndex - 1); i >= 1; i--) {
+    const g = document.createElement('div');
+    g.className = `stack-ghost stack-ghost-${i}`;
+    const np = ap[stackIndex + i];
+    g.style.background = `linear-gradient(135deg,${np.g1},${np.g2})`;
+    el.appendChild(g);
+  }
+  const card = document.createElement('div');
+  card.className = 'swipe-card draggable';
+  card.id = 'top-card';
+  card.innerHTML = '<span class="swipe-label label-nope">NOPE</span><span class="swipe-label label-like">LIKE ♥</span>' + cardInnerHtml(ap[stackIndex]);
+  el.appendChild(card);
+  initSwipe(card);
+  if (currentTab === 'analyzer') $('analyzerView').innerHTML = analyzerHtml();
+}
+
+function initSwipe(card) {
+  let startX = 0, curX = 0, active = false;
+  const THRESHOLD = 80;
+  const nope = card.querySelector('.label-nope');
+  const like = card.querySelector('.label-like');
+  card.addEventListener('pointerdown', e => {
+    if (e.target.closest('button')) return;
+    active = true; startX = e.clientX; curX = 0;
+    card.setPointerCapture(e.pointerId);
+    card.classList.add('dragging');
+  });
+  card.addEventListener('pointermove', e => {
+    if (!active) return;
+    curX = e.clientX - startX;
+    card.style.transform = `translateX(${curX}px) rotate(${curX * 0.07}deg)`;
+    nope.style.opacity = Math.min(1, Math.max(0, -curX / THRESHOLD));
+    like.style.opacity = Math.min(1, Math.max(0, curX / THRESHOLD));
+  });
+  card.addEventListener('pointerup', () => {
+    if (!active) return; active = false;
+    card.classList.remove('dragging');
+    if (curX < -THRESHOLD) { swipeLeft(); }
+    else if (curX > THRESHOLD) { swipeRight(); }
+    else {
+      card.classList.add('snap-back');
+      card.style.transform = '';
+      nope.style.opacity = like.style.opacity = 0;
+      setTimeout(() => card.classList.remove('snap-back'), 300);
+    }
+    curX = 0;
+  });
+  card.addEventListener('pointercancel', () => { active = false; card.classList.remove('dragging'); card.style.transform = ''; });
+}
+
+function animateAndAdvance(cls, action) {
+  const card = $('top-card');
+  if (!card) return;
+  card.classList.add(cls);
+  setTimeout(action, 350);
+}
+function swipeLeft()  { animateAndAdvance('fly-left',  doOpen); }
+function swipeRight() { animateAndAdvance('fly-right', () => doMatch('共役整合')); }
+function swipeTHRU()  { animateAndAdvance('fly-right', () => doMatch('THRU接続')); }
+
+function doOpen() {
+  const p = allProfiles()[stackIndex];
+  $('toast').textContent = `${p.name} は開放端として見送りました。`;
+  stackIndex++; renderStack();
+}
+
+function doMatch(kind) {
+  const p = allProfiles()[stackIndex];
+  const score = Math.min(100, scoreOf(p) + (kind === 'THRU接続' ? 7 : 0));
+  matches.unshift({...p, kind, score});
+  lastMatchedProfile = p;
+  stackIndex++;
+  showMatchCelebration(p, kind, score);
+  if (currentTab === 'matches') $('matchList').innerHTML = matchListHtml();
+}
+
+function resetCards() { stackIndex = 0; renderStack(); }
+
+// ── Match celebration ──
+let particleAnim = null;
+
+function showMatchCelebration(p, kind, score) {
+  const cel = $('match-celebrate');
+  const { R, X } = gammaToZ(p.gamma, p.phase);
+  const sign = X >= 0 ? '+' : '−';
+
+  $('cel-title').textContent = kind === 'THRU接続' ? '⚡ THRU接続' : '整合成功！';
+  $('cel-sub').textContent = `${p.name} との ${kind} | SCORE ${score}`;
+  $('cel-avatar-them').textContent = p.avatar;
+  $('cel-avatar-them').style.background = `linear-gradient(135deg,${p.g1},${p.g2})`;
+  $('cel-params').innerHTML =
+    `<span class="hl">Z</span> = ${R} ${sign} j${Math.abs(X)} Ω<br>` +
+    `<span class="hl">Γ</span> = ${p.gamma.toFixed(3)} ∠${p.phase}<br>` +
+    `<span class="hl">VSWR</span> = ${p.vswr}  <span class="hl">Q</span> = ${p.q}<br>` +
+    `<span class="hl">Return Loss</span> = ${p.returnLoss}`;
+  $('cel-result').style.display = 'none';
+  $('cel-result').innerHTML = '';
+
+  // Pre-fill freq hint from profile
+  const freqNum = parseFloat(p.freq);
+  if (!isNaN(freqNum)) {
+    const mhz = p.freq.includes('GHz') ? freqNum * 1000 : freqNum;
+    $('cel-freq').value = mhz;
+  } else {
+    $('cel-freq').value = '';
+  }
+
+  cel.classList.add('show');
+  startParticles();
+}
+
+$('cel-continue').addEventListener('click', () => {
+  $('match-celebrate').classList.remove('show');
+  stopParticles();
+  renderStack();
+});
+
+$('cel-calc-btn').addEventListener('click', () => {
+  const freqMHz = parseFloat($('cel-freq').value);
+  if (!lastMatchedProfile || isNaN(freqMHz) || freqMHz <= 0) {
+    alert('周波数（MHz）を入力してね。');
+    return;
+  }
+  const p = lastMatchedProfile;
+  const { R: R2, X: X2 } = gammaToZ(p.gamma, p.phase);
+  // Assume source is 50Ω (standard)
+  const result = calcLNetwork(50, 0, R2, X2, freqMHz);
+  const res = $('cel-result');
+  if (!result) {
+    res.innerHTML = 'インピーダンスの実部が同じため、L型整合網は不要かもしれません。';
+  } else {
+    res.innerHTML =
+      `<b>L型整合網（50Ω → Z<sub>L</sub>）</b><br>` +
+      `Q = <code>${result.Q}</code><br>` +
+      `<code>${result.series}</code><br>` +
+      `<code>${result.shunt}</code><br>` +
+      `<span style="opacity:.6;font-size:.75rem">※ 反転配置: ${result.seriesAlt} / ${result.shuntAlt}</span>`;
+  }
+  res.style.display = 'block';
+});
+
+// ── RF particles ──
+function startParticles() {
+  const cv = $('rf-particles');
+  cv.width = window.innerWidth;
+  cv.height = window.innerHeight;
+  const ctx = cv.getContext('2d');
+  const pts = [];
+  const cols = ['#22d3ee','#3b82f6','#8b5cf6','#10b981','#f59e0b'];
+
+  function spawnBurst() {
+    for (let i = 0; i < 6; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1 + Math.random() * 3;
+      pts.push({
+        x: cv.width / 2 + (Math.random() - 0.5) * 200,
+        y: cv.height / 2 + (Math.random() - 0.5) * 200,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 1,
+        life: 1, size: 3 + Math.random() * 4,
+        col: cols[Math.floor(Math.random() * cols.length)],
+        shape: Math.random() > 0.5 ? 'dot' : 'wave',
+      });
+    }
+  }
+
+  const spawnInterval = setInterval(spawnBurst, 150);
+
+  function loop() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    for (let i = pts.length - 1; i >= 0; i--) {
+      const p = pts[i];
+      p.life -= 0.018; p.x += p.vx; p.y += p.vy; p.vy += 0.04;
+      if (p.life <= 0) { pts.splice(i, 1); continue; }
+      ctx.globalAlpha = p.life * 0.85;
+      ctx.fillStyle = p.col;
+      ctx.beginPath();
+      if (p.shape === 'wave') {
+        ctx.rect(p.x, p.y, p.size * p.life * 2, p.size * p.life * 0.5);
+      } else {
+        ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    particleAnim = requestAnimationFrame(loop);
+  }
+  loop();
+
+  // Store interval reference for cleanup
+  cv._spawnInterval = spawnInterval;
+}
+
+function stopParticles() {
+  if (particleAnim) { cancelAnimationFrame(particleAnim); particleAnim = null; }
+  const cv = $('rf-particles');
+  if (cv._spawnInterval) { clearInterval(cv._spawnInterval); cv._spawnInterval = null; }
+  cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
+}
+
+// ── Analyzer ──
+function analyzerHtml() {
+  const ap = allProfiles();
+  if (!ap.length) return '<div style="padding:2rem;text-align:center;color:#667085">読み込み中…</div>';
+  const p = ap[Math.min(stackIndex, ap.length - 1)];
   const score = scoreOf(p);
-  return `
-    <h2>相性アナライザ</h2>
-    <p style="margin:0 0 16px;color:#667085;font-weight:750;">恋愛を無理やりSパラで眺める画面。</p>
+  const { R, X } = gammaToZ(p.gamma, p.phase);
+  const sign = X >= 0 ? '+' : '−';
+  return `<h2>相性アナライザ</h2><p style="margin:0 0 16px;color:#667085;font-weight:750;">恋愛を無理やりSパラで眺める画面。</p>
     <div class="analyzer-grid">
       <div class="big-smith">
-        <div style="width:260px;height:260px;background:linear-gradient(135deg,${p.g1},${p.g2});border-radius:28px;display:grid;place-items:center">
-          ${smithSvg(p,true)}
-        </div>
+        <div style="width:260px;height:260px;background:linear-gradient(135deg,${p.g1},${p.g2});border-radius:28px;display:grid;place-items:center">${smithSvg(p, true)}</div>
         <div style="font-weight:950;margin-top:12px">${p.name} / ${p.impedance}</div>
+        <div style="font-family:monospace;font-size:.8rem;color:#344cff;margin-top:4px">Z = ${R} ${sign} j${Math.abs(X)} Ω</div>
       </div>
       <div class="readouts">
-        ${[
-          ["MATCH SCORE", score, "総合的な整合しやすさ。高いほど終段が穏やか。"],
-          ["反射係数 Γ", p.gamma.toFixed(2), "低いほど、送った気持ちが負荷側に入っている。"],
-          ["VSWR", p.vswr, "1に近いほど良い。2を超えると人間関係も終段も熱い。"],
-          ["Q", p.q, "高いほど刺さるが、帯域は狭い。"],
-          ["Return Loss", p.returnLoss, "反射の少なさをdBで見て現実を受け止める。"]
-        ].map(([a,b,c])=>`
-          <div class="readout">
-            <div class="top"><b>${a}</b><strong>${b}</strong></div>
-            <p>${c}</p>
-          </div>`).join("")}
+        ${[['MATCH SCORE',score,'総合的な整合しやすさ。高いほど終段が穏やか。'],['反射係数 Γ',p.gamma.toFixed(3),'低いほど、送った気持ちが負荷側に入っている。'],['VSWR',p.vswr,'1に近いほど良い。2を超えると人間関係も終段も熱い。'],['Q',p.q,'高いほど刺さるが、帯域は狭い。'],['Return Loss',p.returnLoss,'反射の少なさをdBで見て現実を受け止める。'],['R (実部)',R + ' Ω','抵抗成分。電力を消費する側。'],['X (虚部)',X + ' Ω','リアクタンス。エネルギーを蓄える側。']].map(([a,b,c])=>`<div class="readout"><div class="top"><b>${a}</b><strong>${b}</strong></div><p>${c}</p></div>`).join('')}
       </div>
-    </div>
-  `;
+    </div>`;
 }
 
-function matchListHtml(){
-  if(matches.length === 0){
-    return `<div class="empty">まだ整合履歴がありません。まずはMATCHして、反射波の少ない関係を探しましょう。</div>`;
-  }
-  return matches.map(m=>`
-    <div class="match-item">
-      <div class="match-left">
-        <div class="heartbox">♥</div>
-        <div>
-          <div style="font-weight:1000">${m.name} と整合</div>
-          <div style="font-size:12px;color:#7a8497;font-weight:850">${m.kind} / score ${m.score}</div>
-        </div>
-      </div>
-      <button class="pill-btn">会話</button>
-    </div>
-  `).join("");
+function matchListHtml() {
+  if (!matches.length) return '<div class="empty">まだ整合履歴がありません。まずはMATCHして、反射波の少ない関係を探しましょう。</div>';
+  return matches.map(m => {
+    const { R, X } = gammaToZ(m.gamma, m.phase);
+    const sign = X >= 0 ? '+' : '−';
+    return `<div class="match-item"><div class="match-left"><div class="heartbox" style="background:linear-gradient(135deg,${m.g1},${m.g2})">${m.avatar}</div><div>
+      <div style="font-weight:1000">${m.name} と整合</div>
+      <div style="font-size:11px;color:#7a8497;font-weight:850;font-family:monospace">${m.kind} | score ${m.score} | Z=${R}${sign}j${Math.abs(X)}Ω</div>
+    </div></div></div>`;
+  }).join('');
 }
 
-function render(){
-  $("profileView").innerHTML = profileHtml();
-  $("analyzerView").innerHTML = analyzerHtml();
-  $("matchList").innerHTML = matchListHtml();
-  $("qToggle").className = highQ ? "on" : "";
-  $("qToggle").textContent = `高Q許容 ${highQ ? "ON" : "OFF"}`;
-}
-
-function nextProfile(){
-  index = (index + 1) % profiles.length;
-  render();
-}
-
-function doOpen(){
-  const p = profiles[index % profiles.length];
-  $("toast").textContent = `${p.name} は開放端として見送りました。`;
-  nextProfile();
-}
-
-function doMatch(kind){
-  const p = profiles[index % profiles.length];
-  const score = scoreOf(p) + (kind === "THRU接続" ? 7 : 0);
-  matches.unshift({...p, kind, score: Math.min(100, score)});
-  $("toast").textContent = `${p.name} と${kind === "THRU接続" ? "THRU" : "MATCH"}しました。S11はかなり低そうです。`;
-  nextProfile();
-  if(currentTab === "matches") $("matchList").innerHTML = matchListHtml();
-}
-
-function setTab(tab){
+function setTab(tab) {
   currentTab = tab;
-  document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("active", b.dataset.tab === tab));
-  $("profileView").classList.toggle("hidden", tab !== "profile");
-  $("analyzerView").classList.toggle("hidden", tab !== "analyzer");
-  $("matchesView").classList.toggle("hidden", tab !== "matches");
-  if(tab === "matches") $("matchList").innerHTML = matchListHtml();
+  document.querySelectorAll('.nav button[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  $('profileView').classList.toggle('hidden', tab !== 'profile');
+  $('analyzerView').classList.toggle('hidden', tab !== 'analyzer');
+  $('matchesView').classList.toggle('hidden', tab !== 'matches');
+  if (tab === 'analyzer') $('analyzerView').innerHTML = analyzerHtml();
+  if (tab === 'matches') $('matchList').innerHTML = matchListHtml();
 }
 
-document.querySelectorAll(".nav button").forEach(btn=>{
-  btn.addEventListener("click",()=>setTab(btn.dataset.tab));
-});
+document.querySelectorAll('.nav button[data-tab]').forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
 
-$("qToggle").addEventListener("click",()=>{
+$('qToggle').addEventListener('click', () => {
   highQ = !highQ;
-  $("toast").textContent = highQ ? "高Qな相手も許容します。刺さる周波数帯は狭めです。" : "広帯域寄りで探します。深さより扱いやすさ重視。";
-  render();
+  $('qToggle').className = highQ ? 'on' : '';
+  $('qToggle').textContent = `高Q許容 ${highQ ? 'ON' : 'OFF'}`;
+  $('toast').textContent = highQ ? '高Qな相手も許容します。刺さる周波数帯は狭めです。' : '広帯域寄りで探します。深さより扱いやすさ重視。';
+  renderStack();
 });
 
-$("resetBtn").addEventListener("click",()=>{
-  index = 0;
-  matches = [];
-  $("toast").textContent = "測定面を再定義しました。最初から整合を取り直します。";
-  render();
-  setTab("profile");
+$('resetBtn').addEventListener('click', () => {
+  stackIndex = 0; matches = [];
+  $('toast').textContent = '測定面を再定義しました。最初から整合を取り直します。';
+  setTab('profile'); renderStack();
 });
 
-render();
+// ── Registration ──
+const REG_COLORS = [
+  ['#4f46e5','#06b6d4'],['#d946ef','#fb7185'],['#10b981','#14b8a6'],
+  ['#3b82f6','#8b5cf6'],['#f59e0b','#ef4444'],['#dc2626','#ea580c'],
+  ['#7c3aed','#ec4899'],['#0d9488','#0ea5e9'],['#16a34a','#059669'],
+  ['#0891b2','#6366f1'],['#78350f','#b45309'],['#374151','#6b7280'],
+];
+let selColor = 0;
+
+function initRegistration() {
+  const overlay = $('regOverlay');
+  $('regOpenBtn').addEventListener('click', () => overlay.classList.add('open'));
+  $('regCloseBtn').addEventListener('click', () => overlay.classList.remove('open'));
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+  const qSlider = $('reg-q'), qVal = $('reg-q-val');
+  qSlider.addEventListener('input', () => { qVal.textContent = qSlider.value; });
+  const colorWrap = $('reg-colors');
+  REG_COLORS.forEach(([g1, g2], i) => {
+    const btn = document.createElement('button');
+    btn.className = 'reg-color-swatch' + (i === 0 ? ' sel' : '');
+    btn.style.cssText = `background:linear-gradient(135deg,${g1},${g2});border:none;`;
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.reg-color-swatch').forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel'); selColor = i;
+    });
+    colorWrap.appendChild(btn);
+  });
+  $('reg-submit').addEventListener('click', () => {
+    const name = $('reg-name').value.trim();
+    const age = parseInt($('reg-age').value) || 25;
+    const job = $('reg-job').value.trim();
+    const bio = $('reg-bio').value.trim();
+    if (!name || !job || !bio) { alert('名前・職種・自己紹介は必須です。'); return; }
+    const q = parseInt(qSlider.value);
+    const gamma = Math.max(0.03, Math.min(0.28, Math.round((0.26 - q * 0.0022) * 100) / 100));
+    const vswr = Math.round(((1 + gamma) / (1 - gamma)) * 100) / 100;
+    const rl = (Math.round(-20 * Math.log10(gamma) * 10) / 10) + ' dB';
+    const profile = {
+      name, age, job,
+      avatar: $('reg-avatar').value,
+      impedance: $('reg-impedance').value,
+      q, gamma, vswr, freq: '???', phase: '+0°', returnLoss: rl,
+      tags: job.split(/[,、\s]+/).filter(Boolean).slice(0, 5),
+      bio,
+      wants: [$('reg-want1').value||'相性のいい人',$('reg-want2').value||'誠実な人',$('reg-want3').value||'落ち着いた人'].filter(w=>w.trim()),
+      g1: REG_COLORS[selColor][0], g2: REG_COLORS[selColor][1],
+    };
+    const stored = userProfiles();
+    stored.unshift(profile);
+    localStorage.setItem('seigou_profiles', JSON.stringify(stored));
+    overlay.classList.remove('open');
+    resetCards();
+    $('toast').textContent = `${name} のプロフィールを登録しました。`;
+  });
+}
+
+fetch('profiles.json')
+  .then(r => r.json())
+  .then(data => { profiles = data; renderStack(); initRegistration(); })
+  .catch(() => { $('card-stack').innerHTML = '<div class="stack-empty">プロフィールの読み込みに失敗しました。</div>'; });
+
 </script>
 </body>
 </html>
