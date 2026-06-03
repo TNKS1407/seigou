@@ -291,6 +291,17 @@
     .label-nope{left:1.25rem;color:var(--red);border-color:var(--red);}
     .label-like{right:1.25rem;color:var(--green);border-color:var(--green);}
     .stack-empty{background:#fff;border-radius:30px;padding:3rem;text-align:center;color:#667085;font-weight:800;box-shadow:var(--shadow);}
+    /* ── Smith hero card ── */
+    .hero-chart{position:relative;background:#050d2e;overflow:hidden;}
+    .card-name-bar{position:relative;display:flex;align-items:center;gap:10px;padding:10px 14px;color:#fff;}
+    .avatar-sm{font-size:28px;flex-shrink:0;}
+    .name-sm{font-size:22px;font-weight:1000;letter-spacing:-.05em;line-height:1;}
+    .age-sm{margin-left:8px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.2);font-size:13px;font-weight:900;}
+    .job-sm{font-size:12px;opacity:.8;margin-top:2px;}
+    .score-sm{margin-left:auto;font-size:28px;font-weight:1000;color:#22d3ee;letter-spacing:-.05em;line-height:1;}
+    .score-sm span{font-size:11px;font-weight:900;opacity:.7;margin-left:2px;}
+    @keyframes smith-pulse-anim{0%,100%{r:7;opacity:1}50%{r:9;opacity:.7}}
+    .smith-pulse{animation:smith-pulse-anim 1.5s ease-in-out infinite;}
     /* ── Registration modal ── */
     .chat-btn{border:1px solid #edf1ff;background:#fff;border-radius:999px;padding:6px 14px;font:inherit;font-size:12px;font-weight:900;color:var(--blue);cursor:pointer;transition:.15s;}
     .chat-btn:hover{background:var(--blue);color:#fff;}
@@ -328,6 +339,7 @@
       <nav class="nav">
         <button class="active" data-tab="profile">探索</button>
         <button data-tab="analyzer">解析</button>
+        <button data-tab="map">マップ</button>
         <button data-tab="matches">履歴</button>
         <button class="reg-open-btn" id="regOpenBtn">+ 登録</button>
       </nav>
@@ -354,6 +366,8 @@
           <p style="margin-bottom:16px;color:#667085;font-weight:750;">MATCHした相手がここに残ります。</p>
           <div id="matchList" class="match-list"></div>
         </section>
+
+        <section id="mapView" class="card hidden"></section>
       </main>
 
       <aside>
@@ -389,7 +403,7 @@
     <div class="cel-heart">♥</div>
     <div class="cel-avatar" id="cel-avatar-them">❓</div>
   </div>
-  <div class="cel-params" id="cel-params"></div>
+  <div id="cel-smith-chart" style="max-width:200px;margin:0 auto .75rem"></div><div class="cel-params" id="cel-params"></div>
   <div class="cel-divider">── 整合回路を計算する ──</div>
   <div class="cel-calc">
     <input type="number" id="cel-freq" placeholder="周波数 (MHz)" min="0.001" step="any" />
@@ -456,14 +470,10 @@
 <script>
 // ── State ──
 const state = {
-  deck: [],          // shuffled profile indices
-  deckPos: 0,        // current position in deck
-  highQ: true,
-  matches: [],
-  currentTab: 'profile',
+  deck: [], deckPos: 0, highQ: true,
+  matches: [], currentTab: 'profile',
   lastMatchedProfile: null,
 };
-
 let profiles = [];
 
 function userProfiles() {
@@ -473,15 +483,13 @@ function allProfiles() { return [...userProfiles(), ...profiles]; }
 
 function shuffleDeck() {
   const ap = allProfiles();
-  const indices = ap.map((_, i) => i);
-  for (let i = indices.length - 1; i > 0; i--) {
+  const idx = ap.map((_, i) => i);
+  for (let i = idx.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [indices[i], indices[j]] = [indices[j], indices[i]];
+    [idx[i], idx[j]] = [idx[j], idx[i]];
   }
-  state.deck = indices;
-  state.deckPos = 0;
+  state.deck = idx; state.deckPos = 0;
 }
-
 function currentProfile() {
   const ap = allProfiles();
   if (state.deckPos >= state.deck.length) return null;
@@ -489,8 +497,7 @@ function currentProfile() {
 }
 
 const $ = id => document.getElementById(id);
-const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 function toast(msg) { $('toast').textContent = msg; }
 
 // ── RF math ──
@@ -498,10 +505,11 @@ function gammaToZ(gamma, phaseStr, Z0 = 50) {
   const theta = parseFloat(phaseStr) * Math.PI / 180;
   const re = gamma * Math.cos(theta);
   const im = gamma * Math.sin(theta);
-  const denom = (1 - re) ** 2 + im ** 2;
-  const R = Z0 * (1 - re ** 2 - im ** 2) / denom;
-  const X = Z0 * 2 * im / denom;
-  return { R: Math.round(R * 10) / 10, X: Math.round(X * 10) / 10 };
+  const d = (1 - re) ** 2 + im ** 2;
+  return {
+    R: Math.round(Z0 * (1 - re ** 2 - im ** 2) / d * 10) / 10,
+    X: Math.round(Z0 * 2 * im / d * 10) / 10,
+  };
 }
 
 function calcLNetwork(R1, R2, freqMHz) {
@@ -509,75 +517,162 @@ function calcLNetwork(R1, R2, freqMHz) {
   const Rh = Math.max(R1, R2), Rl = Math.min(R1, R2);
   if (Rh <= 0 || Rl <= 0 || Rh <= Rl) return null;
   const Q = Math.sqrt(Rh / Rl - 1);
-  const Xs = Q * Rl;
-  const Xp = Rh / Q;
-  function toComp(X, label) {
-    if (X > 0) return `${label}: L = ${Math.round(X / omega * 1e12) / 1000} nH`;
-    return `${label}: C = ${Math.round(-1e15 / (omega * X)) / 1000} pF`;
+  const Xs = Q * Rl, Xp = Rh / Q;
+  function toC(X, label) {
+    return X > 0
+      ? `${label}: L = ${Math.round(X / omega * 1e12) / 1000} nH`
+      : `${label}: C = ${Math.round(-1e15 / (omega * X)) / 1000} pF`;
   }
-  return {
-    Q: Math.round(Q * 100) / 100,
-    series: toComp(Xs, '直列'),
-    shunt: toComp(-Xp, '並列'),
-    seriesAlt: toComp(-Xs, '直列'),
-    shuntAlt: toComp(Xp, '並列'),
-  };
+  return { Q: Math.round(Q * 100) / 100, series: toC(Xs, '直列'), shunt: toC(-Xp, '並列'), seriesAlt: toC(-Xs, '直列'), shuntAlt: toC(Xp, '並列') };
 }
 
 function scoreOf(p) {
-  const gammaScore = (1 - clamp(p.gamma / 0.3, 0, 1)) * 38;
-  const qTarget = state.highQ ? 88 : 62;
-  const qScore = (1 - Math.abs(p.q - qTarget) / 100) * 24;
-  const vswrScore = (1 - clamp((p.vswr - 1) / 0.8, 0, 1)) * 26;
-  const tagScore = p.tags.some(t => ['RF','Sパラ','電源','VNA'].includes(t)) ? 12 : 5;
-  return Math.round(gammaScore + qScore + vswrScore + tagScore);
+  const g = (1 - clamp(p.gamma / 0.3, 0, 1)) * 38;
+  const q = (1 - Math.abs(p.q - (state.highQ ? 88 : 62)) / 100) * 24;
+  const v = (1 - clamp((p.vswr - 1) / 0.8, 0, 1)) * 26;
+  const t = p.tags.some(t => ['RF','Sパラ','電源','VNA'].includes(t)) ? 12 : 5;
+  return Math.round(g + q + v + t);
 }
 
-// ── Smith chart ──
-function smithSvg(p, big) {
+// ── Smith Chart SVG (full-featured) ──
+function fullSmithSvg(p, opts = {}) {
+  const {
+    size = 280,       // viewBox size
+    showLabel = true,
+    showPath = false, // show matching path
+    animate = false,
+    otherGamma = null, // second profile's gamma for comparison
+  } = opts;
+
+  const CX = size / 2, CY = size / 2, R = size * 0.43;
   const phase = parseFloat(p.phase) * Math.PI / 180;
-  const r = clamp(p.gamma, 0, 0.4) * 145;
-  const x = 100 + r * Math.cos(phase);
-  const y = 100 - r * Math.sin(phase);
-  const cls = big ? '' : 'smith-bg';
-  const op = big ? '.35' : '.22';
-  const sw = big ? '1' : '0.8';
-  const rVals = [0, 0.3, 0.5, 1, 2, 5];
+  const r = clamp(p.gamma, 0, 0.5) * R / 0.5;
+  const px = CX + r * Math.cos(phase);
+  const py = CY - r * Math.sin(phase);
+  const { R: Rz, X: Xz } = gammaToZ(p.gamma, p.phase);
+  const signX = Xz >= 0 ? '+' : '−';
+
+  // Constant-R circles (normalized r=0, 0.2, 0.5, 1, 2, 5)
+  const rVals = [0, 0.2, 0.5, 1, 2, 5];
   const rCircles = rVals.map(rv => {
-    const cx = 22 + rv / (rv + 1) * 156;
-    const rad = 78 / (rv + 1);
-    return `<circle cx="${cx.toFixed(1)}" cy="100" r="${rad.toFixed(1)}" fill="none" stroke="rgba(255,255,255,${op})" stroke-width="${sw}"/>`;
+    const cx = CX + rv / (rv + 1) * R;
+    const rad = R / (rv + 1);
+    const label = rv === 0 ? '' : (rv < 1 ? `${rv}` : `${rv}`);
+    return `<circle cx="${cx.toFixed(1)}" cy="${CY}" r="${rad.toFixed(1)}" fill="none" stroke="rgba(100,200,255,.2)" stroke-width="1"/>
+      ${label && showLabel ? `<text x="${(cx + rad - 4).toFixed(1)}" y="${(CY - 4).toFixed(1)}" font-size="7" fill="rgba(100,200,255,.5)" text-anchor="end">${rv}Ω</text>` : ''}`;
   }).join('');
-  const xVals = [0.5, 1, 2, -0.5, -1, -2];
+
+  // Constant-X arcs (x = ±0.2, ±0.5, ±1, ±2)
+  const xVals = [0.2, 0.5, 1, 2, -0.2, -0.5, -1, -2];
   const xArcs = xVals.map(xv => {
-    const cy = 100 - 78 / xv;
-    const rad = Math.abs(78 / xv);
-    return `<circle cx="178" cy="${cy.toFixed(1)}" r="${rad.toFixed(1)}" fill="none" stroke="rgba(255,255,255,${op})" stroke-width="${sw}" clip-path="url(#sc)"/>`;
+    const cy = CY - R / xv;
+    const rad = Math.abs(R / xv);
+    return `<circle cx="${(CX + R).toFixed(1)}" cy="${cy.toFixed(1)}" r="${rad.toFixed(1)}" fill="none" stroke="rgba(100,200,255,.15)" stroke-width="1" clip-path="url(#smith-clip-${size})"/>`;
   }).join('');
-  return `<svg class="${cls}" viewBox="0 0 200 200">
-    <defs><clipPath id="sc"><circle cx="100" cy="100" r="78"/></clipPath></defs>
-    <circle cx="100" cy="100" r="78" fill="rgba(255,255,255,.06)" stroke="rgba(255,255,255,.72)" stroke-width="1.5"/>
-    ${rCircles}${xArcs}
-    <path d="M22 100 H178" stroke="rgba(255,255,255,.5)" stroke-width="1"/>
-    <circle cx="100" cy="100" r="3" fill="rgba(255,255,255,.4)"/>
-    <line x1="100" y1="100" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#22d3ee" stroke-width="${big?'2.5':'3'}" stroke-linecap="round" opacity=".8"/>
-    <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${big?'6':'7'}" fill="#06b6d4" stroke="white" stroke-width="${big?'2':'2.5'}"/>
-    ${big?`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="12" fill="none" stroke="#22d3ee" stroke-width="1" opacity=".4"/>`:''}
-    <text x="100" y="194" text-anchor="middle" font-size="9" fill="rgba(255,255,255,.5)" font-family="monospace">Γ</text>
+
+  // Matching path arc (from center to Γ point) if requested
+  let matchPath = '';
+  if (showPath) {
+    matchPath = `<path d="M ${CX} ${CY} Q ${(CX + px) / 2 + 10} ${(CY + py) / 2 - 10} ${px.toFixed(1)} ${py.toFixed(1)}" fill="none" stroke="#22d3ee" stroke-width="1.5" stroke-dasharray="4 3" opacity=".6"/>`;
+  }
+
+  // Second profile point
+  let otherPoint = '';
+  if (otherGamma) {
+    const op = parseFloat(otherGamma.phase) * Math.PI / 180;
+    const or = clamp(otherGamma.gamma, 0, 0.5) * R / 0.5;
+    const ox = CX + or * Math.cos(op);
+    const oy = CY - or * Math.sin(op);
+    otherPoint = `<circle cx="${ox.toFixed(1)}" cy="${oy.toFixed(1)}" r="5" fill="${otherGamma.g1}" stroke="white" stroke-width="1.5" opacity=".7"/>`;
+  }
+
+  // Animate class for Γ point
+  const animClass = animate ? 'smith-pulse' : '';
+
+  return `<svg viewBox="0 0 ${size} ${size}" style="width:100%;height:100%;">
+    <defs>
+      <clipPath id="smith-clip-${size}"><circle cx="${CX}" cy="${CY}" r="${R}"/></clipPath>
+      <radialGradient id="smith-bg-grad"><stop offset="0%" stop-color="#0d1b4b"/><stop offset="100%" stop-color="#050d2e"/></radialGradient>
+      ${animate ? `<filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>` : ''}
+    </defs>
+    <rect width="${size}" height="${size}" fill="url(#smith-bg-grad)" rx="0"/>
+    <circle cx="${CX}" cy="${CY}" r="${R}" fill="rgba(255,255,255,.03)" stroke="rgba(100,200,255,.4)" stroke-width="1.5"/>
+    ${rCircles}
+    ${xArcs}
+    <line x1="${(CX - R).toFixed(1)}" y1="${CY}" x2="${(CX + R).toFixed(1)}" y2="${CY}" stroke="rgba(100,200,255,.3)" stroke-width="1"/>
+    <line x1="${CX}" y1="${(CY - R).toFixed(1)}" x2="${CX}" y2="${(CY + R).toFixed(1)}" stroke="rgba(100,200,255,.12)" stroke-width="0.5"/>
+    ${matchPath}
+    ${otherPoint}
+    <circle cx="${CX}" cy="${CY}" r="4" fill="rgba(255,255,255,.3)" stroke="rgba(255,255,255,.6)" stroke-width="1"/>
+    <text x="${(CX + 6).toFixed(1)}" y="${(CY - 4).toFixed(1)}" font-size="7" fill="rgba(255,255,255,.4)">50Ω</text>
+    <line x1="${CX}" y1="${CY}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" opacity=".9" ${animate ? 'filter="url(#glow)"' : ''}/>
+    <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="7" fill="${p.g1}" stroke="#22d3ee" stroke-width="2" class="${animClass}" ${animate ? 'filter="url(#glow)"' : ''}/>
+    <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="11" fill="none" stroke="${p.g1}" stroke-width="1" opacity=".4"/>
+    ${showLabel ? `
+    <rect x="4" y="${size - 26}" width="${size - 8}" height="22" rx="4" fill="rgba(0,0,0,.5)"/>
+    <text x="${size / 2}" y="${size - 13}" text-anchor="middle" font-size="9" fill="#22d3ee" font-family="'Courier New',monospace">Z = ${Rz} ${signX} j${Math.abs(Xz)} Ω  |  Γ = ${p.gamma.toFixed(2)} ∠${p.phase}</text>
+    ` : ''}
   </svg>`;
 }
 
+// ── Map SVG (all profiles) ──
+function mapSvg(ap, focusIdx) {
+  const SIZE = 300, CX = 150, CY = 150, R = 128;
+
+  const rVals = [0, 0.3, 0.5, 1, 2, 5];
+  const rCircles = rVals.map(rv => {
+    const cx = CX + rv / (rv + 1) * R;
+    const rad = R / (rv + 1);
+    return `<circle cx="${cx.toFixed(1)}" cy="${CY}" r="${rad.toFixed(1)}" fill="none" stroke="rgba(100,200,255,.2)" stroke-width="1"/>`;
+  }).join('');
+  const xVals = [0.3, 0.5, 1, 2, -0.3, -0.5, -1, -2];
+  const xArcs = xVals.map(xv => {
+    const cy = CY - R / xv;
+    const rad = Math.abs(R / xv);
+    return `<circle cx="${(CX + R).toFixed(1)}" cy="${cy.toFixed(1)}" r="${rad.toFixed(1)}" fill="none" stroke="rgba(100,200,255,.12)" stroke-width="0.8" clip-path="url(#mc)"/>`;
+  }).join('');
+
+  const dots = ap.map((p, i) => {
+    const theta = parseFloat(p.phase) * Math.PI / 180;
+    const r = clamp(p.gamma, 0, 0.5) * R / 0.5;
+    const x = CX + r * Math.cos(theta);
+    const y = CY - r * Math.sin(theta);
+    const isFocus = i === focusIdx;
+    return `<g class="map-dot" data-idx="${i}" style="cursor:pointer" onclick="mapClick(${i})">
+      <circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${isFocus ? 9 : 6}" fill="${p.g1}" stroke="${isFocus ? '#22d3ee' : 'rgba(255,255,255,.5)'}" stroke-width="${isFocus ? 2.5 : 1.5}" opacity="${isFocus ? 1 : 0.7}"/>
+      ${isFocus ? `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="14" fill="none" stroke="#22d3ee" stroke-width="1" opacity=".5"/>` : ''}
+      <text x="${x.toFixed(1)}" y="${(y - 10).toFixed(1)}" text-anchor="middle" font-size="${isFocus ? 9 : 7}" fill="${isFocus ? '#22d3ee' : 'rgba(255,255,255,.6)'}">${p.name}</text>
+    </g>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${SIZE} ${SIZE}" style="width:100%;max-width:340px;display:block;margin:auto;">
+    <defs>
+      <clipPath id="mc"><circle cx="${CX}" cy="${CY}" r="${R}"/></clipPath>
+      <radialGradient id="map-bg"><stop offset="0%" stop-color="#0d1b4b"/><stop offset="100%" stop-color="#050d2e"/></radialGradient>
+    </defs>
+    <rect width="${SIZE}" height="${SIZE}" fill="url(#map-bg)" rx="16"/>
+    <circle cx="${CX}" cy="${CY}" r="${R}" fill="rgba(255,255,255,.03)" stroke="rgba(100,200,255,.4)" stroke-width="1.5"/>
+    ${rCircles}${xArcs}
+    <line x1="${(CX - R).toFixed(1)}" y1="${CY}" x2="${(CX + R).toFixed(1)}" y2="${CY}" stroke="rgba(100,200,255,.25)" stroke-width="1"/>
+    <circle cx="${CX}" cy="${CY}" r="5" fill="rgba(255,255,255,.5)" stroke="white" stroke-width="1.5"/>
+    <text x="${(CX + 7).toFixed(1)}" y="${(CY - 5).toFixed(1)}" font-size="7" fill="rgba(255,255,255,.5)">50Ω</text>
+    ${dots}
+    <text x="${CX}" y="${SIZE - 6}" text-anchor="middle" font-size="8" fill="rgba(100,200,255,.4)">Smith Chart — Γ空間マップ</text>
+  </svg>`;
+}
+
+// ── Card rendering ──
 function circuitSvg() {
-  return `<svg viewBox="0 0 260 96" style="width:100%;height:96px">
-    <path d="M18 48 H56" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
-    <path d="M56 48 c8 -18 18 -18 26 0 c8 18 18 18 26 0 c8 -18 18 -18 26 0" fill="none" stroke="#0f766e" stroke-width="4" stroke-linecap="round"/>
-    <path d="M134 48 H164" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
-    <path d="M164 28 V68" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
-    <path d="M178 28 V68" stroke="#2563eb" stroke-width="4" stroke-linecap="round"/>
-    <path d="M178 48 H222" stroke="#64748b" stroke-width="4" stroke-linecap="round"/>
-    <rect x="222" y="28" width="26" height="40" rx="4" fill="white" stroke="#64748b" stroke-width="3"/>
-    <text x="235" y="53" text-anchor="middle" font-size="14" fill="#334155">ZL</text>
-    <text x="130" y="88" text-anchor="middle" font-size="12" fill="#64748b">LとCで、いったん社会に出られる形へ</text>
+  return `<svg viewBox="0 0 260 80" style="width:100%;height:80px">
+    <path d="M18 40 H56" stroke="#64748b" stroke-width="3" stroke-linecap="round"/>
+    <path d="M56 40 c7-15 15-15 22 0 c7 15 15 15 22 0 c7-15 15-15 22 0" fill="none" stroke="#0f766e" stroke-width="3" stroke-linecap="round"/>
+    <path d="M122 40 H148" stroke="#64748b" stroke-width="3" stroke-linecap="round"/>
+    <path d="M148 24 V56" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+    <path d="M160 24 V56" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+    <path d="M160 40 H200" stroke="#64748b" stroke-width="3" stroke-linecap="round"/>
+    <rect x="200" y="24" width="22" height="32" rx="4" fill="white" stroke="#64748b" stroke-width="2.5"/>
+    <text x="211" y="44" text-anchor="middle" font-size="12" fill="#334155">ZL</text>
+    <text x="130" y="72" text-anchor="middle" font-size="10" fill="#64748b">L整合網</text>
   </svg>`;
 }
 
@@ -586,36 +681,31 @@ function cardInnerHtml(p) {
   const { R, X } = gammaToZ(p.gamma, p.phase);
   const sign = X >= 0 ? '+' : '−';
   return `
-    <div class="hero" style="--g1:${p.g1};--g2:${p.g2}">
-      ${smithSvg(p)}
-      <div class="hero-inner">
-        <div class="avatar">${p.avatar}</div>
+    <div class="hero-chart" style="background:linear-gradient(135deg,${p.g1}22,${p.g2}11);border-bottom:1px solid rgba(100,200,255,.15);">
+      ${fullSmithSvg(p, { size: 260, showLabel: true, animate: true })}
+      <div class="card-name-bar" style="background:linear-gradient(135deg,${p.g1}cc,${p.g2}cc)">
+        <span class="avatar-sm">${p.avatar}</span>
         <div>
-          <div class="name-row"><div class="name">${p.name}</div><div class="age">${p.age}</div></div>
-          <div class="job">${p.job} / ${p.impedance}</div>
-          <div class="z-display">Z = <span class="z-real">${R}</span><span class="z-sep"> ${sign} j</span><span class="z-imag">${Math.abs(X)}</span><span class="z-sep"> Ω</span></div>
-          <p class="quote" style="font-size:12px;margin-top:4px">Γ = ${p.gamma.toFixed(2)} ∠${p.phase}  |  Q = ${p.q}</p>
+          <div class="name-sm">${p.name}<span class="age-sm">${p.age}</span></div>
+          <div class="job-sm">${p.job} / ${p.impedance}</div>
         </div>
+        <div class="score-sm">${score}<span>pt</span></div>
       </div>
     </div>
     <div class="body"><div>
-      <div class="tags">${p.tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+      <div class="tags">${p.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>
       <div class="bio">${p.bio}</div>
       <div class="wants"><div class="section-title">✨ こういう整合を希望</div>
-        <ul>${p.wants.map(w=>`<li>${w}</li>`).join('')}</ul>
+        <ul>${p.wants.map(w => `<li>${w}</li>`).join('')}</ul>
       </div>
     </div>
     <div class="sidegrid">
-      <div class="score">
-        <div class="score-number">${score}</div>
-        <div class="score-label">MATCH SCORE</div>
-        <div class="meter" style="--score:${score}%"><span></span></div>
-      </div>
       <div class="params">
         <div class="param"><small>VSWR</small><b>${p.vswr}</b></div>
         <div class="param"><small>Return Loss</small><b>${p.returnLoss}</b></div>
-        <div class="param"><small>中心周波数</small><b style="font-size:14px">${p.freq}</b></div>
+        <div class="param"><small>周波数</small><b style="font-size:13px">${p.freq}</b></div>
         <div class="param"><small>Phase</small><b>${p.phase}</b></div>
+        <div class="param" style="grid-column:span 2"><small>Z (複素インピーダンス)</small><b style="font-size:13px;font-family:monospace">${R} ${sign} j${Math.abs(X)} Ω</b></div>
       </div>
       <div class="circuit">${circuitSvg()}</div>
     </div></div>
@@ -626,20 +716,26 @@ function cardInnerHtml(p) {
     </div>`;
 }
 
+// ── Map click handler ──
+function mapClick(idx) {
+  const ap = allProfiles();
+  const deckIdx = state.deck.indexOf(idx);
+  if (deckIdx >= 0) {
+    state.deckPos = deckIdx;
+    setTab('profile');
+  }
+}
+
 // ── Card stack ──
 function renderStack() {
   const ap = allProfiles();
   const el = $('card-stack');
   el.innerHTML = '';
-
   if (!ap.length) { el.innerHTML = '<div class="stack-empty">読み込み中…</div>'; return; }
-
   if (state.deckPos >= state.deck.length) {
     el.innerHTML = '<div class="stack-empty">全員見ました！<br><button onclick="resetDeck()" style="margin-top:14px;border:0;border-radius:999px;background:#111827;color:#fff;padding:10px 22px;font:inherit;font-weight:900;cursor:pointer">再校正</button></div>';
     return;
   }
-
-  // Ghost cards (next 2 in deck)
   for (let i = Math.min(2, state.deck.length - state.deckPos - 1); i >= 1; i--) {
     const np = ap[state.deck[state.deckPos + i]];
     if (!np) continue;
@@ -648,7 +744,6 @@ function renderStack() {
     g.style.background = `linear-gradient(135deg,${np.g1},${np.g2})`;
     el.appendChild(g);
   }
-
   const p = currentProfile();
   const card = document.createElement('div');
   card.className = 'swipe-card draggable';
@@ -656,8 +751,8 @@ function renderStack() {
   card.innerHTML = '<span class="swipe-label label-nope">NOPE</span><span class="swipe-label label-like">LIKE ♥</span>' + cardInnerHtml(p);
   el.appendChild(card);
   initSwipe(card);
-
   if (state.currentTab === 'analyzer') $('analyzerView').innerHTML = analyzerHtml();
+  if (state.currentTab === 'map') $('mapView').innerHTML = mapHtml();
 }
 
 function initSwipe(card) {
@@ -665,7 +760,6 @@ function initSwipe(card) {
   const THRESHOLD = 80;
   const nope = card.querySelector('.label-nope');
   const like = card.querySelector('.label-like');
-
   card.addEventListener('pointerdown', e => {
     if (e.target.closest('button')) return;
     active = true; startX = e.clientX; curX = 0;
@@ -675,7 +769,7 @@ function initSwipe(card) {
   card.addEventListener('pointermove', e => {
     if (!active) return;
     curX = e.clientX - startX;
-    card.style.transform = `translateX(${curX}px) rotate(${curX * 0.07}deg)`;
+    card.style.transform = `translateX(${curX}px) rotate(${curX * 0.06}deg)`;
     nope.style.opacity = Math.min(1, Math.max(0, -curX / THRESHOLD));
     like.style.opacity = Math.min(1, Math.max(0, curX / THRESHOLD));
   });
@@ -692,9 +786,7 @@ function initSwipe(card) {
     }
     curX = 0;
   });
-  card.addEventListener('pointercancel', () => {
-    active = false; card.classList.remove('dragging'); card.style.transform = '';
-  });
+  card.addEventListener('pointercancel', () => { active = false; card.classList.remove('dragging'); card.style.transform = ''; });
 }
 
 function animateAndAdvance(cls, action) {
@@ -710,10 +802,8 @@ function swipeTHRU()  { animateAndAdvance('fly-right', () => doMatch('THRU接続
 function doOpen() {
   const p = currentProfile();
   toast(`${p.name} は開放端として見送りました。`);
-  state.deckPos++;
-  renderStack();
+  state.deckPos++; renderStack();
 }
-
 function doMatch(kind) {
   const p = currentProfile();
   if (!p) return;
@@ -724,142 +814,60 @@ function doMatch(kind) {
   showMatchCelebration(p, kind, score);
   if (state.currentTab === 'matches') $('matchList').innerHTML = matchListHtml();
 }
-
-function resetDeck() {
-  shuffleDeck();
-  renderStack();
-  toast('測定面を再定義しました。最初から整合を取り直します。');
-}
-
-// ── Match celebration ──
-let particleAnim = null;
-
-function showMatchCelebration(p, kind, score) {
-  const cel = $('match-celebrate');
-  const { R, X } = gammaToZ(p.gamma, p.phase);
-  const sign = X >= 0 ? '+' : '−';
-
-  $('cel-title').textContent = kind === 'THRU接続' ? '⚡ THRU接続' : '整合成功！';
-  $('cel-sub').textContent = `${p.name} との ${kind} | SCORE ${score}`;
-  $('cel-avatar-them').textContent = p.avatar;
-  $('cel-avatar-them').style.background = `linear-gradient(135deg,${p.g1},${p.g2})`;
-  $('cel-params').innerHTML =
-    `<span class="hl">Z</span> = ${R} ${sign} j${Math.abs(X)} Ω<br>` +
-    `<span class="hl">Γ</span> = ${p.gamma.toFixed(3)} ∠${p.phase}<br>` +
-    `<span class="hl">VSWR</span> = ${p.vswr}  <span class="hl">Q</span> = ${p.q}<br>` +
-    `<span class="hl">Return Loss</span> = ${p.returnLoss}`;
-  $('cel-result').style.display = 'none';
-
-  const freqNum = parseFloat(p.freq);
-  $('cel-freq').value = !isNaN(freqNum) ? (p.freq.includes('GHz') ? freqNum * 1000 : freqNum) : '';
-
-  cel.classList.add('show');
-  startParticles();
-  if (dismissCelebration._timer) clearTimeout(dismissCelebration._timer);
-  dismissCelebration._timer = setTimeout(dismissCelebration, 4000);
-}
-
-$('cel-continue').addEventListener('click', () => {
-  $('match-celebrate').classList.remove('show');
-  stopParticles();
-  renderStack();
-});
-
-$('cel-calc-btn').addEventListener('click', () => {
-  const freqMHz = parseFloat($('cel-freq').value);
-  const p = state.lastMatchedProfile;
-  if (!p || isNaN(freqMHz) || freqMHz <= 0) { alert('周波数（MHz）を入力してね。'); return; }
-  const { R: R2 } = gammaToZ(p.gamma, p.phase);
-  const result = calcLNetwork(50, R2, freqMHz);
-  const res = $('cel-result');
-  res.innerHTML = result
-    ? `<b>L型整合網（50Ω → Z<sub>L</sub>）</b><br>Q = <code>${result.Q}</code><br><code>${result.series}</code><br><code>${result.shunt}</code><br><span style="opacity:.6;font-size:.75rem">反転: ${result.seriesAlt} / ${result.shuntAlt}</span>`
-    : 'インピーダンスが近いため整合は不要かもしれません。';
-  res.style.display = 'block';
-});
-
-// ── RF particles ──
-function startParticles() {
-  const cv = $('rf-particles');
-  cv.width = window.innerWidth; cv.height = window.innerHeight;
-  const ctx = cv.getContext('2d');
-  const pts = [];
-  const cols = ['#22d3ee','#3b82f6','#8b5cf6','#10b981','#f59e0b'];
-
-  const spawnInterval = setInterval(() => {
-    for (let i = 0; i < 5; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 1 + Math.random() * 3;
-      pts.push({
-        x: cv.width / 2 + (Math.random() - 0.5) * 200,
-        y: cv.height * 0.4 + (Math.random() - 0.5) * 150,
-        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1,
-        life: 1, size: 3 + Math.random() * 4,
-        col: cols[Math.floor(Math.random() * cols.length)],
-        wave: Math.random() > 0.5,
-      });
-    }
-  }, 150);
-  cv._spawnInterval = spawnInterval;
-
-  function loop() {
-    ctx.clearRect(0, 0, cv.width, cv.height);
-    for (let i = pts.length - 1; i >= 0; i--) {
-      const p = pts[i];
-      p.life -= 0.018; p.x += p.vx; p.y += p.vy; p.vy += 0.04;
-      if (p.life <= 0) { pts.splice(i, 1); continue; }
-      ctx.globalAlpha = p.life * 0.85;
-      ctx.fillStyle = p.col;
-      ctx.beginPath();
-      if (p.wave) ctx.rect(p.x, p.y, p.size * p.life * 2, p.size * p.life * 0.5);
-      else ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-    particleAnim = requestAnimationFrame(loop);
-  }
-  loop();
-}
-
-function stopParticles() {
-  if (particleAnim) { cancelAnimationFrame(particleAnim); particleAnim = null; }
-  const cv = $('rf-particles');
-  if (cv._spawnInterval) { clearInterval(cv._spawnInterval); cv._spawnInterval = null; }
-  cv.getContext('2d').clearRect(0, 0, cv.width, cv.height);
-}
+function resetDeck() { shuffleDeck(); renderStack(); toast('測定面を再定義しました。最初から整合を取り直します。'); }
 
 // ── Analyzer ──
 function analyzerHtml() {
-  const p = currentProfile() || (state.matches[0] || null);
+  const p = currentProfile() || state.matches[0];
   if (!p) return '<div style="padding:2rem;text-align:center;color:#667085">プロフィールを探索してから確認してね。</div>';
   const score = scoreOf(p);
   const { R, X } = gammaToZ(p.gamma, p.phase);
   const sign = X >= 0 ? '+' : '−';
-  return `<h2>相性アナライザ</h2><p style="margin:0 0 16px;color:#667085;font-weight:750;">恋愛を無理やりSパラで眺める画面。</p>
-    <div class="analyzer-grid">
-      <div class="big-smith">
-        <div style="width:260px;height:260px;background:linear-gradient(135deg,${p.g1},${p.g2});border-radius:28px;display:grid;place-items:center">${smithSvg(p, true)}</div>
-        <div style="font-weight:950;margin-top:12px">${p.name} / ${p.impedance}</div>
-        <div style="font-family:monospace;font-size:.8rem;color:#344cff;margin-top:4px">Z = ${R} ${sign} j${Math.abs(X)} Ω</div>
-      </div>
-      <div class="readouts">
-        ${[
-          ['MATCH SCORE', score, '総合的な整合しやすさ。高いほど終段が穏やか。'],
-          ['反射係数 Γ', p.gamma.toFixed(3), '低いほど、送った気持ちが負荷側に入っている。'],
-          ['VSWR', p.vswr, '1に近いほど良い。2を超えると人間関係も終段も熱い。'],
-          ['Q', p.q, '高いほど刺さるが、帯域は狭い。'],
-          ['Return Loss', p.returnLoss, '反射の少なさをdBで見て現実を受け止める。'],
-          ['R (実部)', R + ' Ω', '抵抗成分。電力を消費する側。'],
-          ['X (虚部)', X + ' Ω', 'リアクタンス。エネルギーを蓄える側。'],
-        ].map(([a,b,c]) => `<div class="readout"><div class="top"><b>${a}</b><strong>${b}</strong></div><p>${c}</p></div>`).join('')}
-      </div>
-    </div>`;
+  return `<div style="padding:16px">
+    <h2 style="margin:0 0 8px">相性アナライザ</h2>
+    <p style="margin:0 0 16px;color:#667085;font-weight:750;">恋愛を無理やりSパラで眺める画面。</p>
+    <div style="max-width:300px;margin:0 auto 16px">
+      ${fullSmithSvg(p, { size: 300, showLabel: true, showPath: true, animate: true })}
+    </div>
+    <div style="font-weight:950;text-align:center;margin-bottom:12px">${p.name} / ${p.impedance}</div>
+    <div style="font-family:monospace;font-size:.85rem;color:#344cff;text-align:center;margin-bottom:16px">Z = ${R} ${sign} j${Math.abs(X)} Ω</div>
+    <div class="readouts">
+      ${[
+        ['MATCH SCORE', score, '総合的な整合しやすさ。高いほど終段が穏やか。'],
+        ['反射係数 Γ', p.gamma.toFixed(3), '低いほど、送った気持ちが負荷側に入っている。'],
+        ['VSWR', p.vswr, '1に近いほど良い。2を超えると人間関係も終段も熱い。'],
+        ['Q', p.q, '高いほど刺さるが、帯域は狭い。'],
+        ['Return Loss', p.returnLoss, '反射の少なさをdBで見て現実を受け止める。'],
+        ['R (実部)', R + ' Ω', '抵抗成分。電力を消費する側。'],
+        ['X (虚部)', X + ' Ω', 'リアクタンス。エネルギーを蓄える側。'],
+      ].map(([a,b,c]) => `<div class="readout"><div class="top"><b>${a}</b><strong>${b}</strong></div><p>${c}</p></div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ── Map tab ──
+function mapHtml() {
+  const ap = allProfiles();
+  const focusProfile = currentProfile();
+  const focusIdx = focusProfile ? state.deck[state.deckPos] : -1;
+  const fp = focusProfile;
+  const { R, X } = fp ? gammaToZ(fp.gamma, fp.phase) : { R: 0, X: 0 };
+  const sign = X >= 0 ? '+' : '−';
+  return `<div style="padding:16px">
+    <h2 style="margin:0 0 4px">Γ空間マップ</h2>
+    <p style="margin:0 0 14px;color:#667085;font-weight:750;font-size:13px">全プロフィールのΓ点をスミスチャート上に表示。タップで選択。</p>
+    ${mapSvg(ap, focusIdx)}
+    ${fp ? `<div style="margin-top:12px;background:#f8faff;border-radius:16px;padding:12px;text-align:center">
+      <div style="font-weight:900">${fp.avatar} ${fp.name} — ${fp.impedance}</div>
+      <div style="font-family:monospace;font-size:.82rem;color:#344cff;margin-top:4px">Z = ${R} ${sign} j${Math.abs(X)} Ω  |  Γ = ${fp.gamma.toFixed(3)}</div>
+    </div>` : ''}
+  </div>`;
 }
 
 // ── Match list ──
 function matchListHtml() {
   if (!state.matches.length) return '<div class="empty">まだ整合履歴がありません。まずはMATCHして、反射波の少ない関係を探しましょう。</div>';
-  return state.matches.map((m, i) => {
+  return state.matches.map(m => {
     const { R, X } = gammaToZ(m.gamma, m.phase);
     const sign = X >= 0 ? '+' : '−';
     return `<div class="match-item">
@@ -875,22 +883,107 @@ function matchListHtml() {
   }).join('');
 }
 
-function chatToast(name) {
-  toast(`${name} との会話のS21は、まだ測定中です。`);
-  setTimeout(() => {}, 0);
+function chatToast(name) { toast(`${name} との会話のS21は、まだ測定中です。`); }
+
+// ── Celebration ──
+let particleAnim = null;
+
+function showMatchCelebration(p, kind, score) {
+  const cel = $('match-celebrate');
+  const { R, X } = gammaToZ(p.gamma, p.phase);
+  const sign = X >= 0 ? '+' : '−';
+  $('cel-title').textContent = kind === 'THRU接続' ? '⚡ THRU接続' : '整合成功！';
+  $('cel-sub').textContent = `${p.name} との ${kind} | SCORE ${score}`;
+  $('cel-avatar-them').textContent = p.avatar;
+  $('cel-avatar-them').style.background = `linear-gradient(135deg,${p.g1},${p.g2})`;
+  $('cel-params').innerHTML =
+    `<span class="hl">Z</span> = ${R} ${sign} j${Math.abs(X)} Ω<br>` +
+    `<span class="hl">Γ</span> = ${p.gamma.toFixed(3)} ∠${p.phase}<br>` +
+    `<span class="hl">VSWR</span> = ${p.vswr}  <span class="hl">Q</span> = ${p.q}<br>` +
+    `<span class="hl">Return Loss</span> = ${p.returnLoss}`;
+  $('cel-result').style.display = 'none';
+  const freqNum = parseFloat(p.freq);
+  $('cel-freq').value = !isNaN(freqNum) ? (p.freq.includes('GHz') ? freqNum * 1000 : freqNum) : '';
+
+  // Show Smith chart in celebration too
+  const chartEl = $('cel-smith-chart');
+  if (chartEl) chartEl.innerHTML = fullSmithSvg(p, { size: 200, showLabel: true, showPath: true });
+
+  cel.classList.add('show');
+  startParticles();
+  if (dismissCelebration._timer) clearTimeout(dismissCelebration._timer);
+  dismissCelebration._timer = setTimeout(dismissCelebration, 5000);
 }
 
-// ── Tab switching ──
+$('cel-continue').addEventListener('click', dismissCelebration);
+$('match-celebrate').addEventListener('click', function(e) { if (e.target === this) dismissCelebration(); });
+
+function dismissCelebration() {
+  $('match-celebrate').classList.remove('show');
+  stopParticles();
+  renderStack();
+}
+
+$('cel-calc-btn').addEventListener('click', () => {
+  const freqMHz = parseFloat($('cel-freq').value);
+  const p = state.lastMatchedProfile;
+  if (!p || isNaN(freqMHz) || freqMHz <= 0) { alert('周波数（MHz）を入力してね。'); return; }
+  const { R: R2 } = gammaToZ(p.gamma, p.phase);
+  const result = calcLNetwork(50, R2, freqMHz);
+  const res = $('cel-result');
+  res.innerHTML = result
+    ? `<b>L型整合網（50Ω → Z<sub>L</sub>）</b><br>Q = <code>${result.Q}</code><br><code>${result.series}</code><br><code>${result.shunt}</code>`
+    : 'インピーダンスが近いため整合は不要かもしれません。';
+  res.style.display = 'block';
+});
+
+function startParticles() {
+  const cv = $('rf-particles');
+  cv.width = window.innerWidth; cv.height = window.innerHeight;
+  const ctx = cv.getContext('2d');
+  const pts = [];
+  const cols = ['#22d3ee','#3b82f6','#8b5cf6','#10b981','#f59e0b'];
+  const si = setInterval(() => {
+    for (let i = 0; i < 5; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 1 + Math.random() * 3;
+      pts.push({ x: cv.width/2+(Math.random()-.5)*200, y: cv.height*.4+(Math.random()-.5)*150, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp-1, life:1, size:3+Math.random()*4, col: cols[Math.floor(Math.random()*cols.length)], wave: Math.random()>.5 });
+    }
+  }, 150);
+  cv._si = si;
+  function loop() {
+    ctx.clearRect(0,0,cv.width,cv.height);
+    for (let i = pts.length-1; i>=0; i--) {
+      const p=pts[i]; p.life-=.018; p.x+=p.vx; p.y+=p.vy; p.vy+=.04;
+      if (p.life<=0) { pts.splice(i,1); continue; }
+      ctx.globalAlpha=p.life*.85; ctx.fillStyle=p.col; ctx.beginPath();
+      if (p.wave) ctx.rect(p.x,p.y,p.size*p.life*2,p.size*p.life*.5);
+      else ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha=1;
+    particleAnim=requestAnimationFrame(loop);
+  }
+  loop();
+}
+function stopParticles() {
+  if (particleAnim) { cancelAnimationFrame(particleAnim); particleAnim=null; }
+  const cv=$('rf-particles');
+  if (cv._si) { clearInterval(cv._si); cv._si=null; }
+  cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+}
+
+// ── Tab management ──
 function setTab(tab) {
   state.currentTab = tab;
   document.querySelectorAll('.nav button[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   $('profileView').classList.toggle('hidden', tab !== 'profile');
   $('analyzerView').classList.toggle('hidden', tab !== 'analyzer');
   $('matchesView').classList.toggle('hidden', tab !== 'matches');
+  $('mapView').classList.toggle('hidden', tab !== 'map');
   if (tab === 'analyzer') $('analyzerView').innerHTML = analyzerHtml();
   if (tab === 'matches') $('matchList').innerHTML = matchListHtml();
+  if (tab === 'map') $('mapView').innerHTML = mapHtml();
 }
-
 document.querySelectorAll('.nav button[data-tab]').forEach(btn => btn.addEventListener('click', () => setTab(btn.dataset.tab)));
 
 $('qToggle').addEventListener('click', () => {
@@ -900,7 +993,6 @@ $('qToggle').addEventListener('click', () => {
   toast(state.highQ ? '高Qな相手も許容します。刺さる周波数帯は狭めです。' : '広帯域寄りで探します。深さより扱いやすさ重視。');
   renderStack();
 });
-
 $('resetBtn').addEventListener('click', () => {
   state.matches = [];
   resetDeck();
@@ -909,10 +1001,9 @@ $('resetBtn').addEventListener('click', () => {
 
 // ── Registration ──
 const REG_COLORS = [
-  ['#4f46e5','#06b6d4'],['#d946ef','#fb7185'],['#10b981','#14b8a6'],
-  ['#3b82f6','#8b5cf6'],['#f59e0b','#ef4444'],['#dc2626','#ea580c'],
-  ['#7c3aed','#ec4899'],['#0d9488','#0ea5e9'],['#16a34a','#059669'],
-  ['#0891b2','#6366f1'],['#78350f','#b45309'],['#374151','#6b7280'],
+  ['#4f46e5','#06b6d4'],['#d946ef','#fb7185'],['#10b981','#14b8a6'],['#3b82f6','#8b5cf6'],
+  ['#f59e0b','#ef4444'],['#dc2626','#ea580c'],['#7c3aed','#ec4899'],['#0d9488','#0ea5e9'],
+  ['#16a34a','#059669'],['#0891b2','#6366f1'],['#78350f','#b45309'],['#374151','#6b7280'],
 ];
 let selColor = 0;
 
@@ -928,50 +1019,35 @@ function initRegistration() {
     const btn = document.createElement('button');
     btn.className = 'reg-color-swatch' + (i === 0 ? ' sel' : '');
     btn.style.cssText = `background:linear-gradient(135deg,${g1},${g2});border:none;`;
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.reg-color-swatch').forEach(b => b.classList.remove('sel'));
-      btn.classList.add('sel'); selColor = i;
-    });
+    btn.addEventListener('click', () => { document.querySelectorAll('.reg-color-swatch').forEach(b => b.classList.remove('sel')); btn.classList.add('sel'); selColor = i; });
     colorWrap.appendChild(btn);
   });
   $('reg-submit').addEventListener('click', () => {
-    const name = $('reg-name').value.trim();
-    const age = parseInt($('reg-age').value) || 25;
-    const job = $('reg-job').value.trim();
-    const bio = $('reg-bio').value.trim();
+    const name = $('reg-name').value.trim(), age = parseInt($('reg-age').value) || 25;
+    const job = $('reg-job').value.trim(), bio = $('reg-bio').value.trim();
     if (!name || !job || !bio) { alert('名前・職種・自己紹介は必須です。'); return; }
     const q = parseInt(qSlider.value);
     const gamma = Math.max(0.03, Math.min(0.28, Math.round((0.26 - q * 0.0022) * 100) / 100));
     const vswr = Math.round(((1 + gamma) / (1 - gamma)) * 100) / 100;
     const rl = (Math.round(-20 * Math.log10(gamma) * 10) / 10) + ' dB';
     const profile = {
-      name, age, job,
-      avatar: $('reg-avatar').value,
-      impedance: $('reg-impedance').value,
+      name, age, job, avatar: $('reg-avatar').value, impedance: $('reg-impedance').value,
       q, gamma, vswr, freq: '???', phase: '+0°', returnLoss: rl,
-      tags: job.split(/[,、\s]+/).filter(Boolean).slice(0, 5),
-      bio,
+      tags: job.split(/[,、\s]+/).filter(Boolean).slice(0, 5), bio,
       wants: [$('reg-want1').value||'相性のいい人', $('reg-want2').value||'誠実な人', $('reg-want3').value||'落ち着いた人'].filter(w=>w.trim()),
       g1: REG_COLORS[selColor][0], g2: REG_COLORS[selColor][1],
     };
-    const stored = userProfiles();
-    stored.unshift(profile);
+    const stored = userProfiles(); stored.unshift(profile);
     localStorage.setItem('seigou_profiles', JSON.stringify(stored));
     overlay.classList.remove('open');
-    shuffleDeck();
-    renderStack();
-    toast(`${name} のプロフィールを登録しました。デッキをシャッフルしました。`);
+    shuffleDeck(); renderStack();
+    toast(`${name} のプロフィールを登録しました。`);
   });
 }
 
 fetch('profiles.json')
   .then(r => r.json())
-  .then(data => {
-    profiles = data;
-    shuffleDeck();
-    renderStack();
-    initRegistration();
-  })
+  .then(data => { profiles = data; shuffleDeck(); renderStack(); initRegistration(); })
   .catch(() => { $('card-stack').innerHTML = '<div class="stack-empty">プロフィールの読み込みに失敗しました。</div>'; });
 
 </script>
