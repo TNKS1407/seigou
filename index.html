@@ -391,6 +391,15 @@
         </div>
       </aside>
     </div>
+
+    <details class="lore" style="max-width:480px;margin:16px auto 0;background:#ffffffc4;border:1px solid #fff;border-radius:24px;padding:14px 18px;box-shadow:0 8px 28px rgba(70,90,160,.10);color:#4f5b73;">
+      <summary style="cursor:pointer;font-weight:900;color:#344cff;">🔗 なぜ「整合」が相性なのか ── conjugate と conjugal</summary>
+      <div style="margin-top:11px;line-height:1.9;font-weight:650;font-size:13.5px;color:#3c485d;">
+        共役整合（<b>conjugate</b> matching）の <b>conjugate</b> と、「夫婦の・婚姻の」を意味する <b>conjugal</b> は、語源が同じ。ラテン語 <b>con-</b>（共に）＋ <b>jugum</b>（軛(くびき)＝二頭の牛を一本の棒で繋ぐあれ）── どちらも「共に軛でつながれたもの」。複素共役 Z* と結婚相手は、語の根っこで同じことを言っている。<br><br>
+        しかも中身も合っている。共役整合がいちばん効くのは、相手があなたの虚部の拗れ（+jX）を、ちょうど逆向き（−jX）に持っているとき。組むと反射がゼロになって、送った電力が全部伝わる。拗れを矯正し合うのではなく、逆に拗れた相手と軛でつながる ── それが最大電力伝送。<br><br>
+        「複素インピーダンスを否定しない」は、つまりそういうこと。
+      </div>
+    </details>
   </div>
 
 <!-- Match celebration -->
@@ -469,7 +478,7 @@
 
 <script>
 // ── Frequency sweep locus generator ──
-function frequencyLocus(p, Z0 = 50, nPoints = 40) {
+function frequencyLocus(p, Z0 = 50, nPoints = 90) {
   const { R, X } = gammaToZ(p.gamma, p.phase);
   const Q = p.q;
   const points = [];
@@ -519,21 +528,24 @@ function proSmithSvg(p, opts) {
   const axisColor = dark ? 'rgba(70,170,255,.3)' : 'rgba(30,80,200,.3)';
   const labelColor = dark ? 'rgba(80,200,255,.5)' : 'rgba(30,80,180,.55)';
 
-  // Constant-R circles
-  const rVals = [0.2, 0.5, 1, 2, 5];
-  const rCircles = rVals.map(rv => {
-    const cx2 = CX + rv / (rv + 1) * R;
-    const rad = R / (rv + 1);
-    return `<circle cx="${cx2.toFixed(1)}" cy="${CY}" r="${rad.toFixed(1)}" fill="none" stroke="${gridColor}" stroke-width=".7" clip-path="url(#c${uid})"/>
-      <text x="${(cx2 + rad - 1).toFixed(1)}" y="${(CY - 2).toFixed(1)}" font-size="${size > 180 ? 6.5 : 5}" fill="${labelColor}" text-anchor="end" font-family="monospace">${rv}</text>`;
-  }).join('');
+  // Constant-R circles (major = labeled, minor = faint, for a denser “real” chart)
+  const rMajor = [0.2, 0.5, 1, 2, 5];
+  const rMinor = [0.1, 0.3, 0.7, 1.5, 3, 10];
+  const rCircleStr = (rv, minor) => {
+    const cx2 = CX + rv / (rv + 1) * R, rad = R / (rv + 1);
+    const c = `<circle cx="${cx2.toFixed(1)}" cy="${CY}" r="${rad.toFixed(1)}" fill="none" stroke="${gridColor}" stroke-width="${minor ? .35 : .7}" opacity="${minor ? .5 : 1}" clip-path="url(#c${uid})"/>`;
+    return minor ? c : c + `<text x="${(cx2 + rad - 1).toFixed(1)}" y="${(CY - 2).toFixed(1)}" font-size="${size > 180 ? 6.5 : 5}" fill="${labelColor}" text-anchor="end" font-family="monospace">${rv}</text>`;
+  };
+  const rCircles = [...rMinor.map(v => rCircleStr(v, true)), ...rMajor.map(v => rCircleStr(v, false))].join('');
 
-  // Constant-X arcs
-  const xVals = [0.2, 0.5, 1, 2, 5, -0.2, -0.5, -1, -2, -5];
-  const xArcs = xVals.map(xv => {
+  // Constant-X arcs (major + faint minor)
+  const xMajor = [0.2, 0.5, 1, 2, 5, -0.2, -0.5, -1, -2, -5];
+  const xMinor = [0.1, 0.3, 0.7, 1.5, 3, 10, -0.1, -0.3, -0.7, -1.5, -3, -10];
+  const xArcStr = (xv, minor) => {
     const cy2 = CY - R / xv, rad = Math.abs(R / xv);
-    return `<circle cx="${(CX + R).toFixed(1)}" cy="${cy2.toFixed(1)}" r="${rad.toFixed(1)}" fill="none" stroke="${gridColor}" stroke-width=".6" clip-path="url(#c${uid})"/>`;
-  }).join('');
+    return `<circle cx="${(CX + R).toFixed(1)}" cy="${cy2.toFixed(1)}" r="${rad.toFixed(1)}" fill="none" stroke="${gridColor}" stroke-width="${minor ? .3 : .6}" opacity="${minor ? .45 : 1}" clip-path="url(#c${uid})"/>`;
+  };
+  const xArcs = [...xMinor.map(v => xArcStr(v, true)), ...xMajor.map(v => xArcStr(v, false))].join('');
 
   // VSWR circles
   let vswr = '';
