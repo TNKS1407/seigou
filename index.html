@@ -338,7 +338,7 @@
       </div>
       <nav class="nav">
         <button class="active" data-tab="profile">探索</button>
-        <button data-tab="analyzer">解析</button>
+        <button data-tab="analyzer">相性</button>
         <button data-tab="map">マップ</button>
         <button data-tab="matches">履歴</button>
         <button class="reg-open-btn" id="regOpenBtn">+ 登録</button>
@@ -937,30 +937,114 @@ function doMatch(kind) {
 }
 function resetDeck() { shuffleDeck(); renderStack(); toast('測定面を再定義しました。最初から整合を取り直します。'); }
 
-// ── Analyzer ──
+// ── “あなた” の複素インピーダンス（共役整合の基準） ──
+function getSelf() {
+  try { const s = JSON.parse(localStorage.getItem('seigou_self')); if (s && typeof s.R === 'number' && typeof s.X === 'number') return s; } catch {}
+  return { R: 50, X: 14 }; // 既定：少し誘導性に拗れている
+}
+function setSelf(R, X) { localStorage.setItem('seigou_self', JSON.stringify({ R, X })); }
+function selfZLabel() { const s = getSelf(); return `Z = ${s.R} ${s.X >= 0 ? '+' : '−'} j${Math.abs(s.X)} Ω`; }
+
+// 共役整合：相手があなたの複素共役 Z_S* のとき最大電力。二人の間の電力波反射 Γp と、届く電力 η=1−|Γp|²。
+function conjMatch(self, them) {
+  const { R: RL, X: XL } = gammaToZ(them.gamma, them.phase);
+  const RS = self.R, XS = self.X;
+  // Γp = (Z_L − Z_S*) / (Z_L + Z_S)   [Z_S* = RS − jXS]
+  const nr = RL - RS, ni = XL + XS;   // 分子
+  const dr = RL + RS, di = XL + XS;   // 分母
+  const dd = dr * dr + di * di || 1e-9;
+  const re = (nr * dr + ni * di) / dd, im = (ni * dr - nr * di) / dd;
+  const mag2 = clamp(re * re + im * im, 0, 1);
+  return { gammaP: Math.sqrt(mag2), phaseP: Math.atan2(im, re) * 180 / Math.PI, eta: 1 - mag2, RL, XL, RS, XS };
+}
+
+// 相性チャート：中心=完全整合(η100%)、外へ行くほど反射が大きい。距離=|Γp|（0..1）。
+function compatChartSvg(gp, phaseP, g1, size = 210) {
+  const CX = size / 2, CY = size / 2, R = size * 0.40;
+  const ph = phaseP * Math.PI / 180;
+  const r = clamp(gp, 0, 1) * R;
+  const px = CX + r * Math.cos(ph), py = CY - r * Math.sin(ph);
+  const rings = [[0.90, '#10b981'], [0.70, '#f59e0b'], [0.50, '#ef476f']].map(([e, c]) => {
+    const rr = Math.sqrt(1 - e) * R;
+    return `<circle cx="${CX}" cy="${CY}" r="${rr.toFixed(1)}" fill="none" stroke="${c}" stroke-width="1" stroke-dasharray="3 4" opacity=".5"/>
+      <text x="${CX}" y="${(CY - rr - 2).toFixed(1)}" text-anchor="middle" font-size="7" fill="${c}" font-family="monospace" opacity=".85">η${Math.round(e * 100)}</text>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${size} ${size}" style="width:100%;height:auto;max-width:220px;display:block;margin:auto">
+    <defs><radialGradient id="cbg"><stop offset="0%" stop-color="#0d2a1b"/><stop offset="100%" stop-color="#060f2a"/></radialGradient></defs>
+    <circle cx="${CX}" cy="${CY}" r="${R}" fill="url(#cbg)" stroke="rgba(80,200,160,.4)" stroke-width="1.5"/>
+    ${rings}
+    <line x1="${CX}" y1="${CY}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" stroke="${g1}" stroke-width="1.5" opacity=".9"/>
+    <circle cx="${CX}" cy="${CY}" r="3.5" fill="#22d3ee"/>
+    <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="6" fill="${g1}" stroke="#fff" stroke-width="1.5"/>
+    <text x="${CX}" y="${(CY + R + 13).toFixed(1)}" text-anchor="middle" font-size="8" fill="rgba(120,230,200,.75)" font-family="monospace">中心 = 完全整合（η100%）</text>
+  </svg>`;
+}
+
+// 自分のスライダー入力：派生表示だけ差し替え（スライダー自体は再描画しない＝ドラッグが切れない）
+function onSelfInput(which, v) {
+  const s = getSelf();
+  if (which === 'R') s.R = parseInt(v); else s.X = parseInt(v);
+  setSelf(s.R, s.X);
+  const lbl = $('self-z-label'); if (lbl) lbl.textContent = selfZLabel();
+  const out = $('compat-out'); if (out) { const p = currentProfile() || state.matches[0]; if (p) out.innerHTML = compatOutHtml(p); }
+}
+
+function compatOutHtml(p) {
+  const self = getSelf();
+  const cm = conjMatch(self, p);
+  const etaPct = Math.round(cm.eta * 100), reflPct = 100 - etaPct;
+  const { R, X } = gammaToZ(p.gamma, p.phase);
+  const sign = X >= 0 ? '+' : '−';
+  const conjTarget = `${self.R} ${self.X >= 0 ? '−' : '+'} j${Math.abs(self.X)} Ω`; // = Z_S*
+  const verdict = etaPct >= 90 ? 'ほぼ共役整合。送った気持ちが、ほとんど反射せず相手に入っている。終段は穏やか。'
+    : etaPct >= 70 ? 'まずまずの整合。少し反射はあるけれど、十分に電力が伝わる関係。'
+    : etaPct >= 50 ? '整合はそこそこ。あいだに整合回路（歩み寄り）を一枚入れたいところ。'
+    : '不整合ぎみ。このままだと、送ったぶんの多くが反射して返ってくる。リアクタンスの打ち消しから。';
+  const etaColor = etaPct >= 70 ? '#12a37f' : etaPct >= 50 ? '#f59e0b' : '#ef476f';
+  return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:center;margin-bottom:12px">
+      <div style="text-align:center">
+        <div style="font-size:54px;font-weight:1000;color:${etaColor};line-height:.9;letter-spacing:-.05em">${etaPct}<span style="font-size:22px">%</span></div>
+        <div style="font-size:12px;font-weight:1000;color:#7a8497;margin-top:4px">${p.name} に届く電力 η</div>
+        <div style="font-size:11px;color:#a0a8b8;margin-top:2px;font-family:monospace">反射 ${reflPct}% ／ |Γ|=${cm.gammaP.toFixed(3)}</div>
+      </div>
+      <div>${compatChartSvg(cm.gammaP, cm.phaseP, p.g1)}</div>
+    </div>
+    <div style="background:#f0fffc;border:1px solid #ccf3f0;border-radius:18px;padding:14px;line-height:1.7;font-weight:650;color:#364154;font-size:13px">
+      ${verdict}<br>
+      <span style="color:#667085;font-size:12px">理想は相手が <span style="font-family:monospace;color:#12a37f">${conjTarget}</span>（あなたの複素共役 Z<sub>S</sub>*）。実際は <span style="font-family:monospace">${R} ${sign} j${Math.abs(X)} Ω</span>。この差を、整合回路で埋める ── MATCH すると、その回路を計算できるよ。</span>
+    </div>`;
+}
+
+// ── Analyzer（相性＝共役整合） ──
 function analyzerHtml() {
   const p = currentProfile() || state.matches[0];
   if (!p) return '<div style="padding:2rem;text-align:center;color:#667085">プロフィールを探索してから確認してね。</div>';
+  const self = getSelf();
+  const signSelf = self.X >= 0 ? '+' : '−';
   const score = scoreOf(p);
   const { R, X } = gammaToZ(p.gamma, p.phase);
   const sign = X >= 0 ? '+' : '−';
   return `<div style="padding:16px">
-    <h2 style="margin:0 0 8px">相性アナライザ</h2>
-    <p style="margin:0 0 16px;color:#667085;font-weight:750;">恋愛を無理やりSパラで眺める画面。</p>
-    <div style="max-width:300px;margin:0 auto 16px">
-      ${proSmithSvg(p, { size: 300, showLabel: true, showPath: true, animate: true })}
+    <h2 style="margin:0 0 4px">相性アナライザ ── 共役整合</h2>
+    <p style="margin:0 0 14px;color:#667085;font-weight:750;font-size:13px">最大電力が伝わるのは、相手があなたの<b>複素共役</b>のとき。二人のあいだの反射を測る画面。</p>
+    <div style="background:#f8faff;border:1px solid #edf1ff;border-radius:18px;padding:13px;margin-bottom:14px">
+      <div style="font-weight:900;font-size:13px;margin-bottom:9px">あなたの複素インピーダンス　<span id="self-z-label" style="font-family:monospace;color:#344cff">${selfZLabel()}</span></div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span style="font-size:11px;color:#7a8497;width:66px;font-weight:900">R（実部）</span><input type="range" min="10" max="150" value="${self.R}" oninput="onSelfInput('R',this.value)" style="flex:1;accent-color:#344cff"></div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:11px;color:#7a8497;width:66px;font-weight:900">X（虚部）</span><input type="range" min="-80" max="80" value="${self.X}" oninput="onSelfInput('X',this.value)" style="flex:1;accent-color:#00a6c8"></div>
     </div>
-    <div style="font-weight:950;text-align:center;margin-bottom:12px">${p.name} / ${p.impedance}</div>
-    <div style="font-family:monospace;font-size:.85rem;color:#344cff;text-align:center;margin-bottom:16px">Z = ${R} ${sign} j${Math.abs(X)} Ω</div>
+    <div id="compat-out">${compatOutHtml(p)}</div>
+    <div style="font-weight:900;font-size:13px;margin:16px 0 10px;color:#7a8497">${p.name} 単体のスペック（あなたとは独立）</div>
+    <div style="max-width:280px;margin:0 auto 14px">
+      ${proSmithSvg(p, { size: 280, showLabel: true, showPath: true, animate: true })}
+    </div>
     <div class="readouts">
       ${[
-        ['MATCH SCORE', score, '総合的な整合しやすさ。高いほど終段が穏やか。'],
+        ['MATCH SCORE', score, '相手単体の整合しやすさ。高いほど終段が穏やか。'],
         ['反射係数 Γ', p.gamma.toFixed(3), '低いほど、送った気持ちが負荷側に入っている。'],
         ['VSWR', p.vswr, '1に近いほど良い。2を超えると人間関係も終段も熱い。'],
         ['Q', p.q, '高いほど刺さるが、帯域は狭い。'],
         ['Return Loss', p.returnLoss, '反射の少なさをdBで見て現実を受け止める。'],
-        ['R (実部)', R + ' Ω', '抵抗成分。電力を消費する側。'],
-        ['X (虚部)', X + ' Ω', 'リアクタンス。エネルギーを蓄える側。'],
+        ['Z (複素)', `${R} ${sign} j${Math.abs(X)} Ω`, '実部＝電力を消費する側、虚部＝エネルギーを蓄える側。'],
       ].map(([a,b,c]) => `<div class="readout"><div class="top"><b>${a}</b><strong>${b}</strong></div><p>${c}</p></div>`).join('')}
     </div>
   </div>`;
@@ -1017,7 +1101,9 @@ function showMatchCelebration(p, kind, score) {
   $('cel-sub').textContent = `${p.name} との ${kind} | SCORE ${score}`;
   $('cel-avatar-them').textContent = p.avatar;
   $('cel-avatar-them').style.background = `linear-gradient(135deg,${p.g1},${p.g2})`;
+  const cmCel = conjMatch(getSelf(), p);
   $('cel-params').innerHTML =
+    `<span class="hl">あなたとの整合</span> = η ${Math.round(cmCel.eta * 100)}%（共役整合・届く電力）<br>` +
     `<span class="hl">Z</span> = ${R} ${sign} j${Math.abs(X)} Ω<br>` +
     `<span class="hl">Γ</span> = ${p.gamma.toFixed(3)} ∠${p.phase}<br>` +
     `<span class="hl">VSWR</span> = ${p.vswr}  <span class="hl">Q</span> = ${p.q}<br>` +
@@ -1168,7 +1254,9 @@ function initRegistration() {
 
 fetch('profiles.json')
   .then(r => r.json())
-  .then(data => { profiles = data; shuffleDeck(); renderStack(); initRegistration(); })
+  .then(data => { profiles = data; shuffleDeck(); renderStack(); initRegistration();
+    const qtab = new URLSearchParams(location.search).get('tab');
+    if (['profile','analyzer','map','matches'].includes(qtab)) setTab(qtab); })
   .catch(() => { $('card-stack').innerHTML = '<div class="stack-empty">プロフィールの読み込みに失敗しました。</div>'; });
 
 
